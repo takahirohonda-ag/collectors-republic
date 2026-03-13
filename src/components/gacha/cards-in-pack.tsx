@@ -4,6 +4,7 @@ import { Card, CardRarity } from "@/types";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { CardImage } from "@/components/ui/card-image";
 
 interface CardsInPackProps {
   cards: Card[];
@@ -59,8 +60,8 @@ export function CardsInPack({ cards }: CardsInPackProps) {
             key={card.id}
             className="rounded-lg bg-card border border-border p-2 transition-all hover:bg-card-hover hover:scale-[1.02]"
           >
-            <div className="aspect-[3/4] rounded-md bg-gradient-to-br from-blue-500/10 to-purple-500/10 mb-2 flex items-center justify-center">
-              <span className="text-3xl">🃏</span>
+            <div className="aspect-[3/4] rounded-md bg-gradient-to-br from-gray-800 to-gray-900 mb-2 flex items-center justify-center overflow-hidden">
+              <CardImage src={card.imageUrl} alt={card.name} rarity={card.rarity} size="md" />
             </div>
             <p className="text-xs font-medium text-foreground truncate">
               {card.name}

@@ -1,7 +1,7 @@
 "use client";
 
 import { PulledCard } from "@/types";
-import { cn } from "@/lib/utils";
+import { CardImage } from "@/components/ui/card-image";
 
 interface JustPulledProps {
   cards: PulledCard[];
@@ -31,8 +31,8 @@ export function JustPulled({ cards }: JustPulledProps) {
             key={pulled.id}
             className="rounded-lg bg-card border border-border p-2 transition-colors hover:bg-card-hover"
           >
-            <div className="aspect-[3/4] rounded-md bg-gradient-to-br from-amber-500/20 to-purple-500/20 mb-2 flex items-center justify-center overflow-hidden">
-              <div className="text-2xl">🃏</div>
+            <div className="aspect-[3/4] rounded-md bg-gradient-to-br from-gray-800 to-gray-900 mb-2 flex items-center justify-center overflow-hidden">
+              <CardImage src={pulled.card.imageUrl} alt={pulled.card.name} rarity={pulled.card.rarity} size="md" />
             </div>
             <p className="text-xs font-medium text-foreground truncate">
               {pulled.card.name}

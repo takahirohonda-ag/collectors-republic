@@ -6,6 +6,7 @@ import { Card, GachaPack } from "@/types";
 import { pullCard } from "@/data/mock";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CardImage } from "@/components/ui/card-image";
 import { X } from "lucide-react";
 
 interface PackOpeningModalProps {
@@ -22,11 +23,8 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   useEffect(() => {
-    // Pull cards
     const cards = Array.from({ length: quantity }, () => pullCard(pack));
     setPulledCards(cards);
-
-    // Phase transitions
     const timer1 = setTimeout(() => setPhase("reveal"), 2000);
     return () => clearTimeout(timer1);
   }, [pack, quantity]);
@@ -50,7 +48,7 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
       </button>
 
       <AnimatePresence mode="wait">
-        {/* Opening Phase - Pack animation */}
+        {/* Opening Phase */}
         {phase === "opening" && (
           <motion.div
             key="opening"
@@ -87,7 +85,7 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
           </motion.div>
         )}
 
-        {/* Reveal Phase - Card by card */}
+        {/* Reveal Phase */}
         {phase === "reveal" && currentCard && (
           <motion.div
             key={`reveal-${currentCardIndex}`}
@@ -96,7 +94,6 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
             transition={{ duration: 0.6, type: "spring" }}
             className="flex flex-col items-center gap-6"
           >
-            {/* Glow background */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="h-96 w-96 rounded-full bg-amber-500/10 blur-3xl" />
             </div>
@@ -107,19 +104,20 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
               </p>
 
               <div className="h-80 w-56 rounded-xl bg-gradient-to-br from-amber-500/30 via-purple-500/20 to-blue-500/30 p-1">
-                <div className="flex h-full w-full flex-col items-center justify-center rounded-lg bg-card">
-                  <span className="text-6xl mb-4">🃏</span>
-                  <h3 className="text-lg font-bold text-foreground text-center px-4">
-                    {currentCard.name}
-                  </h3>
-                  <p className="text-amber-400 font-bold text-xl mt-2">
-                    {formatCurrency(currentCard.marketValue)}
-                  </p>
-                  <span className="text-xs text-muted mt-1 capitalize">
-                    {currentCard.rarity.replace("tier", "Tier ")}
-                  </span>
+                <div className="flex h-full w-full flex-col items-center justify-center rounded-lg bg-card overflow-hidden">
+                  <CardImage src={currentCard.imageUrl} alt={currentCard.name} rarity={currentCard.rarity} size="lg" />
                 </div>
               </div>
+
+              <h3 className="text-lg font-bold text-foreground text-center">
+                {currentCard.name}
+              </h3>
+              <p className="text-amber-400 font-bold text-xl">
+                {formatCurrency(currentCard.marketValue)}
+              </p>
+              <span className="text-xs text-muted capitalize">
+                {currentCard.rarity.replace("tier", "Tier ")}
+              </span>
 
               <div className="flex gap-3">
                 {currentCardIndex < pulledCards.length - 1 ? (
@@ -136,7 +134,7 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
           </motion.div>
         )}
 
-        {/* Result Phase - Summary */}
+        {/* Result Phase */}
         {phase === "result" && (
           <motion.div
             key="result"
@@ -152,7 +150,9 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
                   className="flex items-center justify-between rounded-lg bg-background p-3"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-lg">🃏</span>
+                    <div className="h-12 w-9 rounded overflow-hidden flex-shrink-0">
+                      <CardImage src={card.imageUrl} alt={card.name} size="sm" />
+                    </div>
                     <div>
                       <p className="text-sm font-medium">{card.name}</p>
                       <p className="text-xs text-muted capitalize">

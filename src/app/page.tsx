@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { PackTier } from "@/types";
-import { gachaPacks, justPulledCards } from "@/data/mock";
+import { gachaPacks, justPulledCards, CardCategory } from "@/data/mock";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { Coins } from "lucide-react";
 
+import { CategorySelector } from "@/components/gacha/category-selector";
 import { PackSelector } from "@/components/gacha/pack-selector";
 import { QuantitySelector } from "@/components/gacha/quantity-selector";
 import { GachaMachine } from "@/components/gacha/gacha-machine";
@@ -18,16 +19,28 @@ import { PackOpeningModal } from "@/components/gacha/pack-opening-modal";
 import { Button } from "@/components/ui/button";
 
 export default function GachaPage() {
+  const [selectedCategory, setSelectedCategory] = useState<CardCategory>("Pokemon");
   const [selectedTier, setSelectedTier] = useState<PackTier>("basic");
   const [quantity, setQuantity] = useState(1);
   const [isOpening, setIsOpening] = useState(false);
 
-  const currentPack = gachaPacks.find((p) => p.tier === selectedTier) ?? gachaPacks[0];
+  const categoryPacks = gachaPacks.filter((p) => p.category === selectedCategory);
+  const currentPack = categoryPacks.find((p) => p.tier === selectedTier) ?? categoryPacks[0];
   const totalCost = currentPack.price * quantity;
+
+  const filteredPulled = justPulledCards.filter((p) => p.card.series === selectedCategory);
 
   return (
     <>
       <div className="mx-auto max-w-lg px-4 py-6 space-y-6">
+        {/* Category Selector */}
+        <section>
+          <CategorySelector selected={selectedCategory} onChange={(cat) => {
+            setSelectedCategory(cat);
+            setSelectedTier("basic");
+          }} />
+        </section>
+
         {/* Machine + Pack Selector */}
         <section className="space-y-4">
           <QuantitySelector selected={quantity} onChange={setQuantity} />
@@ -63,7 +76,7 @@ export default function GachaPage() {
 
         {/* Just Pulled */}
         <section>
-          <JustPulled cards={justPulledCards} />
+          <JustPulled cards={filteredPulled.length > 0 ? filteredPulled : justPulledCards} />
         </section>
 
         {/* Cards in Pack */}

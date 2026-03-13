@@ -4,6 +4,7 @@ import { useState } from "react";
 import { mockCollection } from "@/data/mock";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CardImage } from "@/components/ui/card-image";
 import { Filter, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -94,8 +95,8 @@ export default function CollectionPage() {
               </div>
 
               {/* Card image */}
-              <div className="aspect-[3/4] rounded-lg bg-gradient-to-br from-amber-500/10 to-purple-500/10 mb-2 flex items-center justify-center">
-                <span className="text-3xl">🃏</span>
+              <div className="aspect-[3/4] rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 mb-2 flex items-center justify-center overflow-hidden">
+                <CardImage src={item.card.imageUrl} alt={item.card.name} rarity={item.card.rarity} size="md" />
               </div>
 
               <p className="text-xs font-medium truncate">{item.card.name}</p>
