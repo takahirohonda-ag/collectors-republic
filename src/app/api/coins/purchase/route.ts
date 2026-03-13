@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, COIN_PACKAGES } from "@/lib/stripe";
+import { getCurrentUser } from "@/lib/auth-server";
 
 export async function POST(req: NextRequest) {
   if (!stripe) {
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid package" }, { status: 400 });
     }
 
+    const authUser = await getCurrentUser();
     const totalCoins = pkg.coins + pkg.bonusCoins;
 
     const session = await stripe.checkout.sessions.create({
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
         packageId: pkg.id,
         coins: String(pkg.coins),
         bonusCoins: String(pkg.bonusCoins),
+        userId: authUser?.id || "",
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/coins/complete?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/coins`,

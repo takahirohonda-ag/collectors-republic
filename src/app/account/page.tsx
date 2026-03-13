@@ -13,25 +13,27 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/context/user-context";
+import { useAuth } from "@/context/auth-context";
 
 const menuItems = [
   { icon: Coins, label: "Purchase Coins", href: "/coins", badge: null },
   { icon: Gift, label: "Referral Program", href: "#", badge: "Earn 500 pts" },
   { icon: Phone, label: "Verify Phone Number", href: "#", badge: null },
-  { icon: Shield, label: "Change Password", href: "#", badge: null },
+  { icon: Shield, label: "Change Password", href: "/reset-password", badge: null },
   { icon: User, label: "User Profile", href: "#", badge: null },
   { icon: HelpCircle, label: "FAQ", href: "/faq", badge: null },
 ];
 
 export default function AccountPage() {
+  const router = useRouter();
   const { coinBalance, pointBalance } = useUser();
-  const user = {
-    username: "CardCollector_99",
-    email: "collector@example.com",
-    memberTier: "Silver",
-    coinBalance,
-    pointBalance,
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/");
   };
 
   return (
@@ -40,15 +42,17 @@ export default function AccountPage() {
       <div className="rounded-xl bg-card border border-border p-5">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center">
-            <span className="text-2xl">👤</span>
+            <span className="text-2xl font-bold text-white">
+              {(user?.username || "U")[0].toUpperCase()}
+            </span>
           </div>
           <div>
-            <h1 className="text-lg font-bold">{user.username}</h1>
-            <p className="text-sm text-muted">{user.email}</p>
+            <h1 className="text-lg font-bold">{user?.username || "User"}</h1>
+            <p className="text-sm text-muted">{user?.email || ""}</p>
             <div className="flex items-center gap-1 mt-1">
               <Star className="h-3 w-3 text-amber-400" />
               <span className="text-xs text-amber-400 font-medium">
-                {user.memberTier} Member
+                Silver Member
               </span>
             </div>
           </div>
@@ -62,20 +66,20 @@ export default function AccountPage() {
             <Coins className="h-4 w-4 text-amber-400" />
             <span className="text-xs text-muted">Coins</span>
           </div>
-          <p className="text-xl font-bold">{formatNumber(user.coinBalance)}</p>
+          <p className="text-xl font-bold">{formatNumber(coinBalance)}</p>
         </div>
         <div className="rounded-xl bg-card border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Gift className="h-4 w-4 text-purple-400" />
             <span className="text-xs text-muted">Points</span>
           </div>
-          <p className="text-xl font-bold">{formatNumber(user.pointBalance)}</p>
+          <p className="text-xl font-bold">{formatNumber(pointBalance)}</p>
         </div>
       </div>
 
       {/* Menu */}
       <div className="rounded-xl bg-card border border-border overflow-hidden">
-        {menuItems.map((item, i) => (
+        {menuItems.map((item) => (
           <Link
             key={item.label}
             href={item.href}
@@ -94,7 +98,10 @@ export default function AccountPage() {
       </div>
 
       {/* Logout */}
-      <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/5">
+      <button
+        onClick={handleLogout}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/30 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/5"
+      >
         <LogOut className="h-4 w-4" />
         Log Out
       </button>

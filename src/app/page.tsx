@@ -24,7 +24,7 @@ export default function GachaPage() {
   const [selectedTier, setSelectedTier] = useState<PackTier>("basic");
   const [quantity, setQuantity] = useState(1);
   const [isOpening, setIsOpening] = useState(false);
-  const { coinBalance, spendCoins, addCoins, addToCollection } = useUser();
+  const { coinBalance, spendCoins, addCoins, addToCollection, refreshBalance } = useUser();
 
   const categoryPacks = gachaPacks.filter((p) => p.category === selectedCategory);
   const currentPack = categoryPacks.find((p) => p.tier === selectedTier) ?? categoryPacks[0];
@@ -127,7 +127,7 @@ export default function GachaPage() {
           <PackOpeningModal
             pack={currentPack}
             quantity={quantity}
-            onClose={() => setIsOpening(false)}
+            onClose={() => { setIsOpening(false); refreshBalance(); }}
             onKeepAll={(cards) => addToCollection(cards)}
             onSellBack={(coins) => addCoins(coins)}
           />

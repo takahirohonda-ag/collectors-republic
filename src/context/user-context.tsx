@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { Card, CollectionItem } from "@/types";
+import { useAuth } from "@/context/auth-context";
 
 interface UserState {
   coinBalance: number;
@@ -15,14 +16,37 @@ interface UserContextType extends UserState {
   addToCollection: (cards: Card[]) => void;
   sellBackCards: (cardIds: string[]) => number;
   removeFromCollection: (cardIds: string[]) => void;
+  refreshBalance: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | null>(null);
 
 export function UserProvider({ children, initialCollection }: { children: ReactNode; initialCollection: CollectionItem[] }) {
+  const { user } = useAuth();
   const [coinBalance, setCoinBalance] = useState(12500);
-  const [pointBalance] = useState(1500);
+  const [pointBalance, setPointBalance] = useState(1500);
   const [collection, setCollection] = useState<CollectionItem[]>(initialCollection);
+
+  // Sync balance from API when user is logged in
+  const refreshBalance = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user");
+      if (res.ok) {
+        const data = await res.json();
+        setCoinBalance(data.coinBalance);
+        setPointBalance(data.pointBalance);
+      }
+    } catch {
+      // Keep local state on error
+    }
+  }, []);
+
+  // Fetch real balance when user changes
+  useEffect(() => {
+    if (user) {
+      refreshBalance();
+    }
+  }, [user, refreshBalance]);
 
   const spendCoins = useCallback((amount: number) => {
     if (coinBalance < amount) return false;
@@ -75,6 +99,7 @@ export function UserProvider({ children, initialCollection }: { children: ReactN
         addToCollection,
         sellBackCards,
         removeFromCollection,
+        refreshBalance,
       }}
     >
       {children}

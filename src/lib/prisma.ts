@@ -1,14 +1,29 @@
-// Prisma client singleton
-// Uncomment and configure once Supabase DB is connected:
-//
-// import { PrismaClient } from "../../src/generated/prisma/client";
-//
-// const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-//
-// export const prisma = globalForPrisma.prisma || new PrismaClient({
-//   datasourceUrl: process.env.DATABASE_URL,
-// });
-//
-// if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Prisma client singleton with graceful fallback when DB is not connected
 
-export {}; // placeholder export
+let prismaClient: ReturnType<typeof createPrismaClient> | null = null;
+
+function createPrismaClient() {
+  try {
+    // Dynamic import at runtime to avoid build errors when generated client doesn't exist
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaClient } = require("../../src/generated/prisma/client");
+    return new PrismaClient({
+      datasourceUrl: process.env.DATABASE_URL,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export function getPrisma() {
+  if (!process.env.DATABASE_URL) return null;
+
+  if (!prismaClient) {
+    prismaClient = createPrismaClient();
+  }
+  return prismaClient;
+}
+
+export function isDbConnected(): boolean {
+  return !!process.env.DATABASE_URL;
+}
