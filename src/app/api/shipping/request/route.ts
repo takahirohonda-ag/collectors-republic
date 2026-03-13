@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         status: "pending",
-        addressJson: address,
+        addressJson: address as any,
       },
     });
 

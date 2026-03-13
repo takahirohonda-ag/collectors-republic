@@ -23,10 +23,11 @@ export async function GET() {
       },
     });
 
-    const shipments = orders.map((o: { id: string; user: { username: string }; items: { collection: { card: { name: string } } }[]; status: string; createdAt: Date; addressJson: { city?: string; country?: string }; trackingNumber: string | null; carrier: string | null }) => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const shipments = orders.map((o: any) => ({
       id: o.id,
       user: o.user.username,
-      cards: o.items.map((i) => i.collection.card.name),
+      cards: o.items.map((i: any) => i.collection.card.name),
       status: o.status,
       requestDate: o.createdAt.toISOString().split("T")[0],
       address: `${(o.addressJson as { city?: string; country?: string })?.city || ""}, ${(o.addressJson as { city?: string; country?: string })?.country || ""}`,
