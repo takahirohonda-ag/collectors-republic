@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils";
-import { Coins, User, Menu, X } from "lucide-react";
+import { Coins, User, Menu, X, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useUser } from "@/context/user-context";
+import { useAuth } from "@/context/auth-context";
 
 const navItems = [
   { href: "/", label: "Gacha" },
@@ -17,6 +17,7 @@ const navItems = [
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { coinBalance } = useUser();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
@@ -46,16 +47,41 @@ export function Header() {
 
         {/* Balance + Account */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 border border-border">
+          <Link href="/coins" className="flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 border border-border hover:bg-card-hover transition-colors">
             <Coins className="h-4 w-4 text-amber-400" />
             <span className="text-sm font-medium">{formatNumber(coinBalance)}</span>
-          </div>
-          <Link
-            href="/account"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border transition-colors hover:bg-card-hover"
-          >
-            <User className="h-4 w-4 text-muted" />
           </Link>
+
+          {!loading && (
+            <>
+              {user ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/account"
+                    className="flex h-9 items-center gap-2 rounded-full bg-card border border-border px-3 transition-colors hover:bg-card-hover"
+                  >
+                    <User className="h-4 w-4 text-muted" />
+                    <span className="hidden text-xs font-medium sm:block">{user.username}</span>
+                  </Link>
+                  <button
+                    onClick={() => signOut()}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-card border border-border transition-colors hover:bg-card-hover"
+                    title="Sign out"
+                  >
+                    <LogOut className="h-4 w-4 text-muted" />
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex h-9 items-center gap-2 rounded-full bg-gradient-to-r from-red-500 to-amber-500 px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:block">Sign In</span>
+                </Link>
+              )}
+            </>
+          )}
 
           {/* Mobile menu toggle */}
           <button
@@ -80,6 +106,23 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {!loading && !user && (
+            <Link
+              href="/login"
+              className="block rounded-lg px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:text-red-300"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+          )}
+          {!loading && user && (
+            <button
+              onClick={() => { signOut(); setMobileMenuOpen(false); }}
+              className="block w-full text-left rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:text-foreground"
+            >
+              Sign Out
+            </button>
+          )}
         </nav>
       )}
     </header>
