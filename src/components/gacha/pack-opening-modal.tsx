@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, GachaPack } from "@/types";
-import { pullCard } from "@/data/mock";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardImage } from "@/components/ui/card-image";
-import { X, Coins } from "lucide-react";
+import { X, Coins, AlertCircle } from "lucide-react";
 
 interface PackOpeningModalProps {
   pack: GachaPack;
@@ -24,13 +23,33 @@ export function PackOpeningModal({ pack, quantity, onClose, onKeepAll, onSellBac
   const [pulledCards, setPulledCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [settled, setSettled] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pullFromApi = useCallback(async () => {
+    try {
+      const pulls = await Promise.all(
+        Array.from({ length: quantity }, () =>
+          fetch("/api/gacha/pull", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ packId: pack.id }),
+          }).then((res) => {
+            if (!res.ok) throw new Error("Pull failed");
+            return res.json();
+          })
+        )
+      );
+      setPulledCards(pulls.map((p) => p.card));
+      setPhase("reveal");
+    } catch {
+      setError("Failed to pull cards. Please try again.");
+    }
+  }, [pack.id, quantity]);
 
   useEffect(() => {
-    const cards = Array.from({ length: quantity }, () => pullCard(pack));
-    setPulledCards(cards);
-    const timer1 = setTimeout(() => setPhase("reveal"), 2000);
-    return () => clearTimeout(timer1);
-  }, [pack, quantity]);
+    const timer = setTimeout(() => pullFromApi(), 1500);
+    return () => clearTimeout(timer);
+  }, [pullFromApi]);
 
   const currentCard = pulledCards[currentCardIndex];
   const totalValue = pulledCards.reduce((sum, c) => sum + c.marketValue, 0);
@@ -105,6 +124,20 @@ export function PackOpeningModal({ pack, quantity, onClose, onKeepAll, onSellBac
             >
               Opening pack...
             </motion.p>
+          </motion.div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <motion.div
+            key="error"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="mx-4 w-full max-w-md rounded-2xl bg-card border border-border p-6 text-center space-y-4"
+          >
+            <AlertCircle className="h-12 w-12 text-red-400 mx-auto" />
+            <p className="text-sm text-red-400">{error}</p>
+            <Button variant="secondary" onClick={onClose}>Close</Button>
           </motion.div>
         )}
 
