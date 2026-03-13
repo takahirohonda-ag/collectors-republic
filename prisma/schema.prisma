@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// Users
+// ==========================================
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  username      String   @unique
+  avatarUrl     String?  @map("avatar_url")
+  coinBalance   Int      @default(0) @map("coin_balance")
+  pointBalance  Int      @default(0) @map("point_balance")
+  memberTier    String   @default("Bronze") @map("member_tier")
+  supabaseId    String   @unique @map("supabase_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  collections      Collection[]
+  pullHistory      PullHistory[]
+  coinTransactions CoinTransaction[]
+  shippingOrders   ShippingOrder[]
+
+  @@map("users")
+}
+
+// ==========================================
+// Cards (admin-managed card catalog)
+// ==========================================
+model Card {
+  id          String @id @default(uuid()) @db.Uuid
+  name        String
+  imageUrl    String @map("image_url")
+  rarity      String // tier1, tier2, tier3, tier4
+  marketValue Int    @map("market_value")
+  series      String // Pokemon, One Piece, etc.
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  packCards   PackCard[]
+  collections Collection[]
+  pullHistory PullHistory[]
+
+  @@map("cards")
+}
+
+// ==========================================
+// Gacha Packs
+// ==========================================
+model GachaPack {
+  id              String @id @default(uuid()) @db.Uuid
+  name            String
+  tier            String // basic, elite, legendary
+  price           Int    // in coins
+  expectedValue   Int    @map("expected_value")
+  description     String
+  category        String // Pokemon, One Piece
+  machineImageUrl String? @map("machine_image_url")
+  active          Boolean @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  probabilities PackProbability[]
+  packCards     PackCard[]
+  pullHistory   PullHistory[]
+
+  @@map("gacha_packs")
+}
+
+model PackProbability {
+  id            String @id @default(uuid()) @db.Uuid
+  packId        String @map("pack_id") @db.Uuid
+  rarity        String
+  label         String
+  percentage    Float
+  valueRangeMin Int    @map("value_range_min")
+  valueRangeMax Int    @map("value_range_max")
+  color         String
+
+  pack GachaPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@map("pack_probabilities")
+}
+
+model PackCard {
+  id     String @id @default(uuid()) @db.Uuid
+  packId String @map("pack_id") @db.Uuid
+  cardId String @map("card_id") @db.Uuid
+
+  pack GachaPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  card Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, cardId])
+  @@map("pack_cards")
+}
+
+// ==========================================
+// User Collections
+// ==========================================
+model Collection {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  cardId       String   @map("card_id") @db.Uuid
+  acquiredAt   DateTime @default(now()) @map("acquired_at")
+  status       String   @default("in_collection") // in_collection, shipping, shipped, sold_back
+  sellBackValue Int     @map("sell_back_value")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  shippingItems ShippingItem[]
+
+  @@map("collections")
+}
+
+// ==========================================
+// Pull History (gacha results log)
+// ==========================================
+model PullHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  packId     String   @map("pack_id") @db.Uuid
+  cardId     String   @map("card_id") @db.Uuid
+  coinsSpent Int      @map("coins_spent")
+  pulledAt   DateTime @default(now()) @map("pulled_at")
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack GachaPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  card Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@map("pull_history")
+}
+
+// ==========================================
+// Coin Transactions (ledger)
+// ==========================================
+model CoinTransaction {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  type            String   // purchase, spend, sell_back, refund, bonus
+  amount          Int      // positive = credit, negative = debit
+  balanceAfter    Int      @map("balance_after")
+  referenceId     String?  @map("reference_id") // pack pull ID, collection ID, etc.
+  stripePaymentId String?  @map("stripe_payment_id")
+  description     String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("coin_transactions")
+}
+
+// ==========================================
+// Shipping
+// ==========================================
+model ShippingOrder {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  status         String   @default("pending") // pending, processing, shipped, delivered
+  addressJson    Json     @map("address_json")
+  trackingNumber String?  @map("tracking_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ShippingItem[]
+
+  @@map("shipping_orders")
+}
+
+model ShippingItem {
+  id           String @id @default(uuid()) @db.Uuid
+  orderId      String @map("order_id") @db.Uuid
+  collectionId String @map("collection_id") @db.Uuid
+
+  order      ShippingOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  collection Collection    @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@map("shipping_items")
+}
+
+// ==========================================
+// Coin Packages (for purchase)
+// ==========================================
+model CoinPackage {
+  id           String  @id @default(uuid()) @db.Uuid
+  coins        Int
+  bonusCoins   Int     @default(0) @map("bonus_coins")
+  priceAed     Int     @map("price_aed") // in fils (1 AED = 100 fils)
+  stripePriceId String? @map("stripe_price_id")
+  popular      Boolean @default(false)
+  active       Boolean @default(true)
+  sortOrder    Int     @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("coin_packages")
+}
