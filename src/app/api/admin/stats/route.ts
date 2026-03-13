@@ -2,10 +2,16 @@ import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 
 const MOCK_STATS = {
-  totalRevenue: 12450,
+  totalRevenueAed: 45850, // in fils → AED 458.50
   totalUsers: 1234,
   packsOpened: 8921,
   pendingShipments: 3,
+  revenueByProvider: [
+    { provider: "stripe", totalAed: 45850, count: 42 },
+  ],
+  revenueByCurrency: [
+    { currency: "AED", total: 45850, totalAed: 45850, count: 42 },
+  ],
   recentActivity: [
     { user: "CryptoKnight", action: "Opened Pokemon Elite Pack", time: "2m ago", amount: "+500 coins" },
     { user: "ZenTrader", action: "Purchased 1,000 coins", time: "5m ago", amount: "AED 37" },
@@ -23,20 +29,38 @@ export async function GET() {
   }
 
   try {
-    const [totalUsers, packsOpened, pendingShipments, revenueResult, recentTx] = await Promise.all([
+    const [totalUsers, packsOpened, pendingShipments, recentTx] = await Promise.all([
       prisma.user.count(),
       prisma.pullHistory.count(),
       prisma.shippingOrder.count({ where: { status: "pending" } }),
-      prisma.coinTransaction.aggregate({
-        where: { type: "purchase" },
-        _sum: { amount: true },
-      }),
       prisma.coinTransaction.findMany({
         take: 10,
         orderBy: { createdAt: "desc" },
         include: { user: { select: { username: true } } },
       }),
     ]);
+
+    // Revenue from payments table (real money)
+    const revenueAgg = await prisma.payment.aggregate({
+      where: { status: "completed" },
+      _sum: { amountAed: true },
+    });
+
+    // Revenue by provider
+    const paymentsByProvider = await prisma.payment.groupBy({
+      by: ["provider"],
+      where: { status: "completed" },
+      _sum: { amountAed: true },
+      _count: true,
+    });
+
+    // Revenue by currency
+    const paymentsByCurrency = await prisma.payment.groupBy({
+      by: ["currency"],
+      where: { status: "completed" },
+      _sum: { amount: true, amountAed: true },
+      _count: true,
+    });
 
     const recentActivity = recentTx.map((tx: { user: { username: string }; type: string; amount: number; createdAt: Date; description: string | null }) => ({
       user: tx.user.username,
@@ -46,10 +70,21 @@ export async function GET() {
     }));
 
     return NextResponse.json({
-      totalRevenue: revenueResult._sum.amount || 0,
+      totalRevenueAed: revenueAgg._sum.amountAed || 0,
       totalUsers,
       packsOpened,
       pendingShipments,
+      revenueByProvider: paymentsByProvider.map((p: { provider: string; _sum: { amountAed: number | null }; _count: number }) => ({
+        provider: p.provider,
+        totalAed: p._sum.amountAed || 0,
+        count: p._count,
+      })),
+      revenueByCurrency: paymentsByCurrency.map((p: { currency: string; _sum: { amount: number | null; amountAed: number | null }; _count: number }) => ({
+        currency: p.currency,
+        total: p._sum.amount || 0,
+        totalAed: p._sum.amountAed || 0,
+        count: p._count,
+      })),
       recentActivity,
       isDbConnected: true,
     });
