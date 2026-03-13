@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TierBadge } from "@/components/ui/badge";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Plus, Edit, Settings } from "lucide-react";
 import { PackTier } from "@/types";
 
@@ -55,7 +55,7 @@ export default function AdminPacksPage() {
                     <TierBadge tier={pack.tier} />
                   </div>
                   <p className="text-xs text-muted mt-0.5">
-                    {formatNumber(pack.price)} coins &middot; EV {formatCurrency(pack.expectedValue)} &middot; {formatNumber(pack.sold)} sold
+                    {formatNumber(pack.price)} coins &middot; EV {formatNumber(pack.expectedValue)} Coins &middot; {formatNumber(pack.sold)} sold
                   </p>
                 </div>
               </div>

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
-import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
+import { ArrowLeft, AlertTriangle, CheckCircle, Coins } from "lucide-react";
 import Link from "next/link";
 
 const mockSellBackCards = [
@@ -26,7 +26,7 @@ export default function SellBackPage() {
           <CheckCircle className="mx-auto h-16 w-16 text-green-400" />
           <h1 className="text-2xl font-bold">Sell Back Complete!</h1>
           <p className="text-sm text-muted">
-            <span className="text-amber-400 font-bold">{formatCurrency(totalSellBack)}</span> in coins have been added to your balance
+            <span className="text-amber-400 font-bold">{formatNumber(totalSellBack)}</span> coins have been added to your balance
           </p>
           <div className="flex gap-3">
             <Link href="/" className="flex-1"><Button size="lg" className="w-full">Open More Packs</Button></Link>
@@ -59,10 +59,10 @@ export default function SellBackPage() {
               <span className="text-lg">🃏</span>
               <div>
                 <p className="text-sm font-medium">{card.name}</p>
-                <p className="text-xs text-muted">Market: {formatCurrency(card.marketValue)}</p>
+                <p className="text-xs text-muted">Market: {formatNumber(card.marketValue)} Coins</p>
               </div>
             </div>
-            <span className="text-sm font-bold text-green-400">{formatCurrency(card.sellBackValue)}</span>
+            <span className="text-sm font-bold text-green-400">{formatNumber(card.sellBackValue)} Coins</span>
           </div>
         ))}
       </div>
@@ -70,7 +70,7 @@ export default function SellBackPage() {
       <div className="rounded-xl bg-card border border-border p-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted">Market Value</span>
-          <span>{formatCurrency(totalMarket)}</span>
+          <span>{formatNumber(totalMarket)} Coins</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted">Sell Back Rate</span>
@@ -78,7 +78,7 @@ export default function SellBackPage() {
         </div>
         <div className="border-t border-border pt-2 flex justify-between text-sm">
           <span className="font-medium">You Receive</span>
-          <span className="font-bold text-green-400">{formatCurrency(totalSellBack)} coins</span>
+          <span className="font-bold text-green-400">{formatNumber(totalSellBack)} Coins</span>
         </div>
       </div>
 

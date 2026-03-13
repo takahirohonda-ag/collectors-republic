@@ -13,6 +13,7 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import { useUser } from "@/context/user-context";
 
 const menuItems = [
   { icon: Coins, label: "Purchase Coins", href: "/coins", badge: null },
@@ -24,13 +25,13 @@ const menuItems = [
 ];
 
 export default function AccountPage() {
-  // Mock user data
+  const { coinBalance, pointBalance } = useUser();
   const user = {
     username: "CardCollector_99",
     email: "collector@example.com",
     memberTier: "Silver",
-    coinBalance: 12500,
-    pointBalance: 1500,
+    coinBalance,
+    pointBalance,
   };
 
   return (

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/utils";
 import { Coins, User, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useUser } from "@/context/user-context";
 
 const navItems = [
   { href: "/", label: "Gacha" },
@@ -15,9 +16,7 @@ const navItems = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Mock user state
-  const coinBalance = 12500;
-  const pointBalance = 1500;
+  const { coinBalance } = useUser();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">

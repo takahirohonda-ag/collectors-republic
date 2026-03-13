@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { ArrowLeft, Package, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -59,7 +59,7 @@ export default function ShippingPage() {
           {mockShipCards.map((c) => (
             <div key={c.id} className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
               <div className="flex items-center gap-2"><span>🃏</span><span className="text-sm">{c.name}</span></div>
-              <span className="text-xs text-muted">{formatCurrency(c.marketValue)}</span>
+              <span className="text-xs text-muted">{formatNumber(c.marketValue)} Coins</span>
             </div>
           ))}
         </div>

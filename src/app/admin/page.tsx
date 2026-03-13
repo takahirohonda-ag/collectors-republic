@@ -1,4 +1,4 @@
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { DollarSign, Users, Package, TrendingUp } from "lucide-react";
 
 const stats = [

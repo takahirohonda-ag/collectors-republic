@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Search, Eye, Ban } from "lucide-react";
 
 const mockUsers = [
@@ -49,7 +49,7 @@ export default function AdminUsersPage() {
                   <p className="text-[10px] text-muted">{user.email}</p>
                 </td>
                 <td className="p-3 text-sm text-muted hidden md:table-cell">{user.joinDate}</td>
-                <td className="p-3 text-sm">{formatCurrency(user.totalSpent)}</td>
+                <td className="p-3 text-sm">{formatNumber(user.totalSpent)} Coins</td>
                 <td className="p-3 text-sm text-muted hidden md:table-cell">{user.packs}</td>
                 <td className="p-3">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${

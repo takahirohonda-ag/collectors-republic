@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 const salesData = [
@@ -34,7 +34,7 @@ export default function AdminSalesPage() {
         {salesData.map((data) => (
           <div key={data.period} className="rounded-xl bg-card border border-border p-4">
             <p className="text-xs text-muted mb-1">{data.period}</p>
-            <p className="text-lg font-bold">{formatCurrency(data.revenue)}</p>
+            <p className="text-lg font-bold">{formatNumber(data.revenue)} Coins</p>
             <div className="flex items-center gap-1 mt-1">
               {data.change > 0 ? (
                 <TrendingUp className="h-3 w-3 text-green-400" />
@@ -59,7 +59,7 @@ export default function AdminSalesPage() {
           <div key={pack.name} className="space-y-1">
             <div className="flex justify-between text-sm">
               <span>{pack.name}</span>
-              <span className="font-medium">{formatCurrency(pack.revenue)}</span>
+              <span className="font-medium">{formatNumber(pack.revenue)} Coins</span>
             </div>
             <div className="h-2 rounded-full bg-background overflow-hidden">
               <div
@@ -85,7 +85,7 @@ export default function AdminSalesPage() {
                 <p className="text-xs text-muted">{tx.type}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium">{formatCurrency(tx.amount)}</p>
+                <p className="text-sm font-medium">{formatNumber(tx.amount)} Coins</p>
                 <p className="text-[10px] text-muted">{tx.time}</p>
               </div>
             </div>

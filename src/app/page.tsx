@@ -4,8 +4,9 @@ import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { PackTier } from "@/types";
 import { gachaPacks, justPulledCards, CardCategory } from "@/data/mock";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Coins } from "lucide-react";
+import { useUser } from "@/context/user-context";
 
 import { CategorySelector } from "@/components/gacha/category-selector";
 import { PackSelector } from "@/components/gacha/pack-selector";
@@ -23,12 +24,20 @@ export default function GachaPage() {
   const [selectedTier, setSelectedTier] = useState<PackTier>("basic");
   const [quantity, setQuantity] = useState(1);
   const [isOpening, setIsOpening] = useState(false);
+  const { coinBalance, spendCoins, addCoins, addToCollection } = useUser();
 
   const categoryPacks = gachaPacks.filter((p) => p.category === selectedCategory);
   const currentPack = categoryPacks.find((p) => p.tier === selectedTier) ?? categoryPacks[0];
   const totalCost = currentPack.price * quantity;
+  const canAfford = coinBalance >= totalCost;
 
   const filteredPulled = justPulledCards.filter((p) => p.card.series === selectedCategory);
+
+  const handleOpenPack = () => {
+    if (spendCoins(totalCost)) {
+      setIsOpening(true);
+    }
+  };
 
   return (
     <>
@@ -67,7 +76,7 @@ export default function GachaPage() {
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted">EXPECTED VALUE</span>
             <span className="text-lg font-bold text-green-400">
-              {formatCurrency(currentPack.expectedValue)}
+              {formatNumber(currentPack.expectedValue)} <span className="text-xs">Coins</span>
             </span>
           </div>
 
@@ -103,10 +112,11 @@ export default function GachaPage() {
           </div>
           <Button
             size="lg"
-            onClick={() => setIsOpening(true)}
+            onClick={handleOpenPack}
+            disabled={!canAfford}
             className="px-8"
           >
-            🎴 OPEN PACK
+            {canAfford ? "🎴 OPEN PACK" : "Not enough coins"}
           </Button>
         </div>
       </div>
@@ -118,6 +128,8 @@ export default function GachaPage() {
             pack={currentPack}
             quantity={quantity}
             onClose={() => setIsOpening(false)}
+            onKeepAll={(cards) => addToCollection(cards)}
+            onSellBack={(coins) => addCoins(coins)}
           />
         )}
       </AnimatePresence>

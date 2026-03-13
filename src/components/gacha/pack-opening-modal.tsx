@@ -4,23 +4,26 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, GachaPack } from "@/types";
 import { pullCard } from "@/data/mock";
-import { formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardImage } from "@/components/ui/card-image";
-import { X } from "lucide-react";
+import { X, Coins } from "lucide-react";
 
 interface PackOpeningModalProps {
   pack: GachaPack;
   quantity: number;
   onClose: () => void;
+  onKeepAll: (cards: Card[]) => void;
+  onSellBack: (coins: number) => void;
 }
 
 type Phase = "opening" | "reveal" | "result";
 
-export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalProps) {
+export function PackOpeningModal({ pack, quantity, onClose, onKeepAll, onSellBack }: PackOpeningModalProps) {
   const [phase, setPhase] = useState<Phase>("opening");
   const [pulledCards, setPulledCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     const cards = Array.from({ length: quantity }, () => pullCard(pack));
@@ -31,6 +34,26 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
 
   const currentCard = pulledCards[currentCardIndex];
   const totalValue = pulledCards.reduce((sum, c) => sum + c.marketValue, 0);
+  const sellBackValue = Math.floor(totalValue * 0.8);
+  const costInCoins = pack.price * quantity;
+
+  const handleKeepAll = () => {
+    onKeepAll(pulledCards);
+    setSettled(true);
+  };
+
+  const handleSellBack = () => {
+    onSellBack(sellBackValue);
+    setSettled(true);
+  };
+
+  const handleClose = () => {
+    // If not settled yet, keep by default
+    if (!settled && pulledCards.length > 0) {
+      onKeepAll(pulledCards);
+    }
+    onClose();
+  };
 
   return (
     <motion.div
@@ -38,10 +61,10 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && phase === "result" && onClose()}
+      onClick={(e) => e.target === e.currentTarget && phase === "result" && handleClose()}
     >
       <button
-        onClick={onClose}
+        onClick={handleClose}
         className="absolute top-4 right-4 text-muted hover:text-foreground z-10"
       >
         <X className="h-6 w-6" />
@@ -112,9 +135,12 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
               <h3 className="text-lg font-bold text-foreground text-center">
                 {currentCard.name}
               </h3>
-              <p className="text-amber-400 font-bold text-xl">
-                {formatCurrency(currentCard.marketValue)}
-              </p>
+              <div className="flex items-center gap-1">
+                <Coins className="h-4 w-4 text-amber-400" />
+                <span className="text-amber-400 font-bold text-xl">
+                  {formatNumber(currentCard.marketValue)}
+                </span>
+              </div>
               <span className="text-xs text-muted capitalize">
                 {currentCard.rarity.replace("tier", "Tier ")}
               </span>
@@ -160,9 +186,12 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-amber-400">
-                    {formatCurrency(card.marketValue)}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <Coins className="h-3 w-3 text-amber-400" />
+                    <span className="text-sm font-bold text-amber-400">
+                      {formatNumber(card.marketValue)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -170,30 +199,52 @@ export function PackOpeningModal({ pack, quantity, onClose }: PackOpeningModalPr
             <div className="border-t border-border pt-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted">Total Value</span>
-                <span className="font-bold text-amber-400">
-                  {formatCurrency(totalValue)}
-                </span>
+                <div className="flex items-center gap-1">
+                  <Coins className="h-3 w-3 text-amber-400" />
+                  <span className="font-bold text-amber-400">
+                    {formatNumber(totalValue)}
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted">Cost</span>
-                <span className="font-medium">
-                  {formatCurrency(pack.price * quantity)}
-                </span>
+                <div className="flex items-center gap-1">
+                  <Coins className="h-3 w-3 text-muted" />
+                  <span className="font-medium">
+                    {formatNumber(costInCoins)}
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted">Sell Back (80%)</span>
-                <span className="font-medium text-green-400">
-                  {formatCurrency(Math.floor(totalValue * 0.8))}
-                </span>
+                <div className="flex items-center gap-1">
+                  <Coins className="h-3 w-3 text-green-400" />
+                  <span className="font-medium text-green-400">
+                    +{formatNumber(sellBackValue)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-4">
-              <Button variant="secondary" className="flex-1" onClick={onClose}>
-                Keep All
-              </Button>
-              <Button className="flex-1">Sell Back</Button>
-            </div>
+            {!settled ? (
+              <div className="flex gap-3 mt-4">
+                <Button variant="secondary" className="flex-1" onClick={handleKeepAll}>
+                  Keep All
+                </Button>
+                <Button className="flex-1" onClick={handleSellBack}>
+                  Sell Back (+{formatNumber(sellBackValue)})
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 text-center space-y-3">
+                <p className="text-sm text-green-400 font-medium">
+                  {settled ? "Done!" : ""}
+                </p>
+                <Button variant="secondary" className="w-full" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

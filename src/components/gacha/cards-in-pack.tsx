@@ -3,8 +3,9 @@
 import { Card, CardRarity } from "@/types";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { CardImage } from "@/components/ui/card-image";
+import { Coins } from "lucide-react";
 
 interface CardsInPackProps {
   cards: Card[];
@@ -66,9 +67,10 @@ export function CardsInPack({ cards }: CardsInPackProps) {
             <p className="text-xs font-medium text-foreground truncate">
               {card.name}
             </p>
-            <p className="text-[10px] text-muted">
-              {formatCurrency(card.marketValue)}
-            </p>
+            <div className="flex items-center gap-0.5">
+              <Coins className="h-2.5 w-2.5 text-amber-400" />
+              <span className="text-[10px] text-amber-400">{formatNumber(card.marketValue)}</span>
+            </div>
           </div>
         ))}
       </div>

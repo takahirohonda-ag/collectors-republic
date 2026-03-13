@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 
 const mockCards = [
@@ -90,7 +90,7 @@ export default function AdminCardsPage() {
                     "bg-amber-500/20 text-amber-400"
                   }`}>{card.rarity}</span>
                 </td>
-                <td className="p-3 text-sm">{formatCurrency(card.marketValue)}</td>
+                <td className="p-3 text-sm">{formatNumber(card.marketValue)} Coins</td>
                 <td className="p-3 text-sm text-muted hidden md:table-cell">{card.stock}</td>
                 <td className="p-3">
                   <div className="flex gap-1">

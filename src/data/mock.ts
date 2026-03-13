@@ -1,15 +1,16 @@
 import { Card, GachaPack, PulledCard, RankingEntry, CollectionItem } from "@/types";
 
 // === Pokemon Cards ===
+// Card names matched to images from images.pokemontcg.io
 const pokemonCards: Card[] = [
   { id: "pk1", name: "Pikachu VMAX", imageUrl: "https://images.pokemontcg.io/swsh4/44_hires.png", rarity: "tier1", marketValue: 45, series: "Pokemon" },
   { id: "pk2", name: "Charizard VMAX", imageUrl: "https://images.pokemontcg.io/swsh35/20_hires.png", rarity: "tier4", marketValue: 450, series: "Pokemon" },
-  { id: "pk3", name: "Rayquaza VMAX Alt Art", imageUrl: "https://images.pokemontcg.io/swsh7/218_hires.png", rarity: "tier3", marketValue: 180, series: "Pokemon" },
-  { id: "pk4", name: "Umbreon VMAX Alt Art", imageUrl: "https://images.pokemontcg.io/swsh7/215_hires.png", rarity: "tier4", marketValue: 500, series: "Pokemon" },
-  { id: "pk5", name: "Mewtwo V", imageUrl: "https://images.pokemontcg.io/swsh8/72_hires.png", rarity: "tier1", marketValue: 35, series: "Pokemon" },
+  { id: "pk3", name: "Rayquaza VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/218_hires.png", rarity: "tier3", marketValue: 180, series: "Pokemon" },
+  { id: "pk4", name: "Umbreon VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/215_hires.png", rarity: "tier4", marketValue: 500, series: "Pokemon" },
+  { id: "pk5", name: "Galarian Darmanitan", imageUrl: "https://images.pokemontcg.io/swsh8/72_hires.png", rarity: "tier1", marketValue: 35, series: "Pokemon" },
   { id: "pk6", name: "Dragonite V", imageUrl: "https://images.pokemontcg.io/swsh8/49_hires.png", rarity: "tier1", marketValue: 40, series: "Pokemon" },
   { id: "pk7", name: "Espeon VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/65_hires.png", rarity: "tier2", marketValue: 95, series: "Pokemon" },
-  { id: "pk8", name: "Lugia V Alt Art", imageUrl: "https://images.pokemontcg.io/swsh12pt5/186_hires.png", rarity: "tier3", marketValue: 220, series: "Pokemon" },
+  { id: "pk8", name: "Lugia V", imageUrl: "https://images.pokemontcg.io/swsh12pt5/186_hires.png", rarity: "tier3", marketValue: 220, series: "Pokemon" },
   { id: "pk9", name: "Gengar VMAX", imageUrl: "https://images.pokemontcg.io/swsh8/271_hires.png", rarity: "tier2", marketValue: 75, series: "Pokemon" },
   { id: "pk10", name: "Mew VMAX", imageUrl: "https://images.pokemontcg.io/swsh8/114_hires.png", rarity: "tier2", marketValue: 85, series: "Pokemon" },
   { id: "pk11", name: "Eevee VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/18_hires.png", rarity: "tier1", marketValue: 30, series: "Pokemon" },
@@ -17,6 +18,7 @@ const pokemonCards: Card[] = [
 ];
 
 // === One Piece Cards ===
+// Using Pokemon TCG images as placeholders with One Piece character names
 const onepieceCards: Card[] = [
   { id: "op1", name: "Monkey D. Luffy (Leader)", imageUrl: "https://images.pokemontcg.io/swsh45/25_hires.png", rarity: "tier1", marketValue: 50, series: "One Piece" },
   { id: "op2", name: "Roronoa Zoro", imageUrl: "https://images.pokemontcg.io/swsh45/35_hires.png", rarity: "tier1", marketValue: 40, series: "One Piece" },
@@ -31,6 +33,7 @@ const onepieceCards: Card[] = [
 ];
 
 // === Gacha Packs ===
+// All values in Coins
 export const gachaPacks: GachaPack[] = [
   // Pokemon Packs
   {
@@ -40,13 +43,13 @@ export const gachaPacks: GachaPack[] = [
     price: 100,
     expectedValue: 50,
     machineImageUrl: "/machines/pokemon-basic.png",
-    description: "Sell any revealed card back instantly for 80% of its market value. Buy with confidence — your downside is protected.",
+    description: "Sell any revealed card back instantly for 80% of its coin value. Buy with confidence — your downside is protected.",
     category: "Pokemon",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$30 - $60", percentage: 80, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$60 - $110", percentage: 15, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$110 - $250", percentage: 4, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$250 - $2,000", percentage: 1, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "30 - 60 Coins", percentage: 80, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "60 - 110 Coins", percentage: 15, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "110 - 250 Coins", percentage: 4, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "250 - 2,000 Coins", percentage: 1, color: "#f59e0b" },
     ],
     cardsInPack: pokemonCards,
   },
@@ -60,10 +63,10 @@ export const gachaPacks: GachaPack[] = [
     description: "Premium selection with higher odds of rare pulls. Each pack guarantees Tier 2 or above.",
     category: "Pokemon",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$100 - $200", percentage: 60, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$200 - $400", percentage: 25, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$400 - $800", percentage: 12, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$800 - $5,000", percentage: 3, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "100 - 200 Coins", percentage: 60, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "200 - 400 Coins", percentage: 25, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "400 - 800 Coins", percentage: 12, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "800 - 5,000 Coins", percentage: 3, color: "#f59e0b" },
     ],
     cardsInPack: pokemonCards,
   },
@@ -77,10 +80,10 @@ export const gachaPacks: GachaPack[] = [
     description: "The ultimate pack for serious collectors. Every card is a gem.",
     category: "Pokemon",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$500 - $1,000", percentage: 50, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$1,000 - $2,000", percentage: 30, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$2,000 - $5,000", percentage: 15, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$5,000 - $20,000", percentage: 5, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "500 - 1,000 Coins", percentage: 50, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "1,000 - 2,000 Coins", percentage: 30, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "2,000 - 5,000 Coins", percentage: 15, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "5,000 - 20,000 Coins", percentage: 5, color: "#f59e0b" },
     ],
     cardsInPack: pokemonCards,
   },
@@ -92,13 +95,13 @@ export const gachaPacks: GachaPack[] = [
     price: 100,
     expectedValue: 55,
     machineImageUrl: "/machines/onepiece-basic.png",
-    description: "Open packs from the hottest TCG on the market. Sell back any card instantly at 80% market value.",
+    description: "Open packs from the hottest TCG on the market. Sell back any card instantly at 80% coin value.",
     category: "One Piece",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$30 - $60", percentage: 78, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$60 - $110", percentage: 16, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$110 - $250", percentage: 5, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$250 - $2,000", percentage: 1, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "30 - 60 Coins", percentage: 78, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "60 - 110 Coins", percentage: 16, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "110 - 250 Coins", percentage: 5, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "250 - 2,000 Coins", percentage: 1, color: "#f59e0b" },
     ],
     cardsInPack: onepieceCards,
   },
@@ -112,10 +115,10 @@ export const gachaPacks: GachaPack[] = [
     description: "Higher rarity guaranteed. Manga Art and Parallel Art cards await inside.",
     category: "One Piece",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$100 - $200", percentage: 55, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$200 - $400", percentage: 28, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$400 - $800", percentage: 14, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$800 - $5,000", percentage: 3, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "100 - 200 Coins", percentage: 55, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "200 - 400 Coins", percentage: 28, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "400 - 800 Coins", percentage: 14, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "800 - 5,000 Coins", percentage: 3, color: "#f59e0b" },
     ],
     cardsInPack: onepieceCards,
   },
@@ -129,10 +132,10 @@ export const gachaPacks: GachaPack[] = [
     description: "The rarest One Piece cards in existence. Gear 5 Luffy Parallel awaits.",
     category: "One Piece",
     probabilities: [
-      { rarity: "tier1", label: "Tier 1", valueRange: "$500 - $1,000", percentage: 48, color: "#22c55e" },
-      { rarity: "tier2", label: "Tier 2", valueRange: "$1,000 - $2,000", percentage: 30, color: "#3b82f6" },
-      { rarity: "tier3", label: "Tier 3", valueRange: "$2,000 - $5,000", percentage: 16, color: "#a855f7" },
-      { rarity: "tier4", label: "Tier 4", valueRange: "$5,000 - $20,000", percentage: 6, color: "#f59e0b" },
+      { rarity: "tier1", label: "Tier 1", valueRange: "500 - 1,000 Coins", percentage: 48, color: "#22c55e" },
+      { rarity: "tier2", label: "Tier 2", valueRange: "1,000 - 2,000 Coins", percentage: 30, color: "#3b82f6" },
+      { rarity: "tier3", label: "Tier 3", valueRange: "2,000 - 5,000 Coins", percentage: 16, color: "#a855f7" },
+      { rarity: "tier4", label: "Tier 4", valueRange: "5,000 - 20,000 Coins", percentage: 6, color: "#f59e0b" },
     ],
     cardsInPack: onepieceCards,
   },
@@ -180,7 +183,6 @@ export function pullCard(pack: GachaPack): Card {
     }
   }
 
-  // Fallback to tier1
   const tier1Cards = pack.cardsInPack.filter(c => c.rarity === "tier1");
   return tier1Cards[Math.floor(Math.random() * tier1Cards.length)];
 }

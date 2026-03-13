@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { mockCollection } from "@/data/mock";
-import { formatCurrency } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardImage } from "@/components/ui/card-image";
-import { Filter, ChevronDown } from "lucide-react";
+import { Filter, ChevronDown, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/context/user-context";
 
 type StatusFilter = "all" | "in_collection" | "shipping" | "shipped" | "sold_back";
-type SortBy = "recent" | "value_high" | "value_low";
 
 const statusLabels: Record<string, string> = {
   all: "Select All",
@@ -22,10 +21,12 @@ const statusLabels: Record<string, string> = {
 export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [showSoldMessage, setShowSoldMessage] = useState(false);
+  const { collection, sellBackCards } = useUser();
 
   const filtered = statusFilter === "all"
-    ? mockCollection
-    : mockCollection.filter((item) => item.status === statusFilter);
+    ? collection
+    : collection.filter((item) => item.status === statusFilter);
 
   const totalValue = filtered.reduce((sum, item) => sum + item.card.marketValue, 0);
 
@@ -42,74 +43,104 @@ export default function CollectionPage() {
     .filter((item) => selectedCards.has(item.id))
     .reduce((sum, item) => sum + item.sellBackValue, 0);
 
+  const handleSellBack = () => {
+    const cardIds = Array.from(selectedCards);
+    const refund = sellBackCards(cardIds);
+    setSelectedCards(new Set());
+    if (refund > 0) {
+      setShowSoldMessage(true);
+      setTimeout(() => setShowSoldMessage(false), 3000);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-lg px-4 py-6 space-y-4">
       <h1 className="text-xl font-bold">My Collection</h1>
 
+      {/* Sold notification */}
+      {showSoldMessage && (
+        <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-3 text-center">
+          <p className="text-sm text-green-400 font-medium">Cards sold back! Coins have been added to your balance.</p>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <button className="flex items-center gap-1 rounded-lg bg-card border border-border px-3 py-1.5 text-xs font-medium text-muted">
-          <Filter className="h-3 w-3" />
-          Status
-          <ChevronDown className="h-3 w-3" />
-        </button>
-        <button className="flex items-center gap-1 rounded-lg bg-card border border-border px-3 py-1.5 text-xs font-medium text-muted">
-          Category
-          <ChevronDown className="h-3 w-3" />
-        </button>
+        {(["all", "in_collection", "sold_back"] as StatusFilter[]).map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+              statusFilter === status
+                ? "bg-red-500 text-white"
+                : "bg-card border border-border text-muted hover:text-foreground"
+            )}
+          >
+            {statusLabels[status]}
+          </button>
+        ))}
       </div>
 
       {/* Card Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {filtered.map((item) => {
-          const isSelected = selectedCards.has(item.id);
-          return (
-            <button
-              key={item.id}
-              onClick={() => toggleCard(item.id)}
-              className={cn(
-                "rounded-xl border p-3 text-left transition-all",
-                isSelected
-                  ? "border-red-500 bg-red-500/5"
-                  : "border-border bg-card hover:bg-card-hover"
-              )}
-            >
-              {/* Status badge */}
-              <div className="flex justify-between items-start mb-2">
-                <span
-                  className={cn(
-                    "text-[10px] font-medium px-1.5 py-0.5 rounded",
-                    item.status === "in_collection" && "bg-green-500/20 text-green-400",
-                    item.status === "shipping" && "bg-blue-500/20 text-blue-400",
-                    item.status === "shipped" && "bg-purple-500/20 text-purple-400",
-                    item.status === "sold_back" && "bg-gray-500/20 text-gray-400"
-                  )}
-                >
-                  {statusLabels[item.status]}
-                </span>
-                {isSelected && (
-                  <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
-                    <span className="text-[10px] text-white">✓</span>
-                  </div>
+      {filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted text-sm">No cards here yet. Open some packs!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {filtered.map((item) => {
+            const isSelected = selectedCards.has(item.id);
+            const canSelect = item.status === "in_collection";
+            return (
+              <button
+                key={item.id}
+                onClick={() => canSelect && toggleCard(item.id)}
+                className={cn(
+                  "rounded-xl border p-3 text-left transition-all",
+                  isSelected
+                    ? "border-red-500 bg-red-500/5"
+                    : "border-border bg-card hover:bg-card-hover",
+                  !canSelect && "opacity-60"
                 )}
-              </div>
+              >
+                {/* Status badge */}
+                <div className="flex justify-between items-start mb-2">
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                      item.status === "in_collection" && "bg-green-500/20 text-green-400",
+                      item.status === "shipping" && "bg-blue-500/20 text-blue-400",
+                      item.status === "shipped" && "bg-purple-500/20 text-purple-400",
+                      item.status === "sold_back" && "bg-gray-500/20 text-gray-400"
+                    )}
+                  >
+                    {statusLabels[item.status]}
+                  </span>
+                  {isSelected && (
+                    <div className="h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                      <span className="text-[10px] text-white">✓</span>
+                    </div>
+                  )}
+                </div>
 
-              {/* Card image */}
-              <div className="aspect-[3/4] rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 mb-2 flex items-center justify-center overflow-hidden">
-                <CardImage src={item.card.imageUrl} alt={item.card.name} rarity={item.card.rarity} size="md" />
-              </div>
+                {/* Card image */}
+                <div className="aspect-[3/4] rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 mb-2 flex items-center justify-center overflow-hidden">
+                  <CardImage src={item.card.imageUrl} alt={item.card.name} rarity={item.card.rarity} size="md" />
+                </div>
 
-              <p className="text-xs font-medium truncate">{item.card.name}</p>
-              <p className="text-[10px] text-amber-400 font-medium">
-                {formatCurrency(item.card.marketValue)}
-              </p>
-              <p className="text-[10px] text-muted">
-                Pulled on {item.acquiredAt.toLocaleDateString()}
-              </p>
-            </button>
-          );
-        })}
-      </div>
+                <p className="text-xs font-medium truncate">{item.card.name}</p>
+                <div className="flex items-center gap-1">
+                  <Coins className="h-3 w-3 text-amber-400" />
+                  <span className="text-[10px] text-amber-400 font-medium">
+                    {formatNumber(item.card.marketValue)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Spacer */}
       <div className="h-24" />
@@ -119,11 +150,11 @@ export default function CollectionPage() {
         <div className="mx-auto max-w-lg">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-muted">
-              Total Value: <span className="text-foreground font-bold">{formatCurrency(totalValue)} 🔥</span>
+              {filtered.length} cards
             </span>
             {selectedCards.size > 0 && (
-              <span className="text-xs text-muted">
-                Selected: {selectedCards.size} cards ({formatCurrency(selectedTotal)})
+              <span className="text-xs text-green-400 font-medium">
+                Sell back: +{formatNumber(selectedTotal)} coins
               </span>
             )}
           </div>
@@ -132,8 +163,9 @@ export default function CollectionPage() {
               variant="secondary"
               className="flex-1"
               disabled={selectedCards.size === 0}
+              onClick={handleSellBack}
             >
-              SELL BACK
+              SELL BACK ({selectedCards.size})
             </Button>
             <Button
               className="flex-1"
