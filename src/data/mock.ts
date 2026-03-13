@@ -4,32 +4,32 @@ import { Card, GachaPack, PulledCard, RankingEntry, CollectionItem } from "@/typ
 // Card names matched to images from images.pokemontcg.io
 const pokemonCards: Card[] = [
   { id: "pk1", name: "Pikachu VMAX", imageUrl: "https://images.pokemontcg.io/swsh4/44_hires.png", rarity: "tier1", marketValue: 45, series: "Pokemon" },
-  { id: "pk2", name: "Charizard VMAX", imageUrl: "https://images.pokemontcg.io/swsh35/20_hires.png", rarity: "tier4", marketValue: 450, series: "Pokemon" },
+  { id: "pk2", name: "Charizard VMAX", imageUrl: "https://images.pokemontcg.io/swsh3/20_hires.png", rarity: "tier4", marketValue: 450, series: "Pokemon" },
   { id: "pk3", name: "Rayquaza VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/218_hires.png", rarity: "tier3", marketValue: 180, series: "Pokemon" },
   { id: "pk4", name: "Umbreon VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/215_hires.png", rarity: "tier4", marketValue: 500, series: "Pokemon" },
   { id: "pk5", name: "Galarian Darmanitan", imageUrl: "https://images.pokemontcg.io/swsh8/72_hires.png", rarity: "tier1", marketValue: 35, series: "Pokemon" },
-  { id: "pk6", name: "Dragonite V", imageUrl: "https://images.pokemontcg.io/swsh8/49_hires.png", rarity: "tier1", marketValue: 40, series: "Pokemon" },
+  { id: "pk6", name: "Centiskorch", imageUrl: "https://images.pokemontcg.io/swsh8/49_hires.png", rarity: "tier1", marketValue: 40, series: "Pokemon" },
   { id: "pk7", name: "Espeon VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/65_hires.png", rarity: "tier2", marketValue: 95, series: "Pokemon" },
   { id: "pk8", name: "Lugia V", imageUrl: "https://images.pokemontcg.io/swsh12pt5/186_hires.png", rarity: "tier3", marketValue: 220, series: "Pokemon" },
   { id: "pk9", name: "Gengar VMAX", imageUrl: "https://images.pokemontcg.io/swsh8/271_hires.png", rarity: "tier2", marketValue: 75, series: "Pokemon" },
   { id: "pk10", name: "Mew VMAX", imageUrl: "https://images.pokemontcg.io/swsh8/114_hires.png", rarity: "tier2", marketValue: 85, series: "Pokemon" },
-  { id: "pk11", name: "Eevee VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/18_hires.png", rarity: "tier1", marketValue: 30, series: "Pokemon" },
+  { id: "pk11", name: "Flareon VMAX", imageUrl: "https://images.pokemontcg.io/swsh7/18_hires.png", rarity: "tier1", marketValue: 30, series: "Pokemon" },
   { id: "pk12", name: "Blaziken VMAX", imageUrl: "https://images.pokemontcg.io/swsh6/21_hires.png", rarity: "tier2", marketValue: 70, series: "Pokemon" },
 ];
 
 // === One Piece Cards ===
-// Using Pokemon TCG images as placeholders with One Piece character names
+// Card images from Limitless TCG CDN (One Piece TCG)
 const onepieceCards: Card[] = [
-  { id: "op1", name: "Monkey D. Luffy (Leader)", imageUrl: "https://images.pokemontcg.io/swsh45/25_hires.png", rarity: "tier1", marketValue: 50, series: "One Piece" },
-  { id: "op2", name: "Roronoa Zoro", imageUrl: "https://images.pokemontcg.io/swsh45/35_hires.png", rarity: "tier1", marketValue: 40, series: "One Piece" },
-  { id: "op3", name: "Nami (Alt Art)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV047_hires.png", rarity: "tier2", marketValue: 90, series: "One Piece" },
-  { id: "op4", name: "Portgas D. Ace", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV064_hires.png", rarity: "tier2", marketValue: 85, series: "One Piece" },
-  { id: "op5", name: "Shanks (Manga Art)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV076_hires.png", rarity: "tier3", marketValue: 200, series: "One Piece" },
-  { id: "op6", name: "Nico Robin (Alt Art)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV079_hires.png", rarity: "tier3", marketValue: 175, series: "One Piece" },
-  { id: "op7", name: "Kaido (Secret Rare)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV094_hires.png", rarity: "tier4", marketValue: 380, series: "One Piece" },
-  { id: "op8", name: "Gear 5 Luffy (Parallel)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV098_hires.png", rarity: "tier4", marketValue: 650, series: "One Piece" },
-  { id: "op9", name: "Trafalgar Law", imageUrl: "https://images.pokemontcg.io/swsh45/44_hires.png", rarity: "tier1", marketValue: 35, series: "One Piece" },
-  { id: "op10", name: "Sanji (Full Art)", imageUrl: "https://images.pokemontcg.io/swsh45sv/SV053_hires.png", rarity: "tier2", marketValue: 80, series: "One Piece" },
+  { id: "op1", name: "Monkey D. Luffy (Leader)", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-003_EN.webp", rarity: "tier1", marketValue: 50, series: "One Piece" },
+  { id: "op2", name: "Roronoa Zoro", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-025_EN.webp", rarity: "tier1", marketValue: 40, series: "One Piece" },
+  { id: "op3", name: "Nami", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-016_EN.webp", rarity: "tier2", marketValue: 90, series: "One Piece" },
+  { id: "op4", name: "Portgas D. Ace", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP02/OP02-013_EN.webp", rarity: "tier2", marketValue: 85, series: "One Piece" },
+  { id: "op5", name: "Shanks", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-120_EN.webp", rarity: "tier3", marketValue: 200, series: "One Piece" },
+  { id: "op6", name: "Nico Robin", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-017_EN.webp", rarity: "tier3", marketValue: 175, series: "One Piece" },
+  { id: "op7", name: "Kaido", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-094_EN.webp", rarity: "tier4", marketValue: 380, series: "One Piece" },
+  { id: "op8", name: "Monkey D. Luffy (Gear 5)", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP05/OP05-119_EN.webp", rarity: "tier4", marketValue: 650, series: "One Piece" },
+  { id: "op9", name: "Trafalgar Law", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-002_EN.webp", rarity: "tier1", marketValue: 35, series: "One Piece" },
+  { id: "op10", name: "Sanji", imageUrl: "https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/OP01/OP01-013_EN.webp", rarity: "tier2", marketValue: 80, series: "One Piece" },
 ];
 
 // === Gacha Packs ===

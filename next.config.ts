@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.pokemontcg.io" },
       { protocol: "https", hostname: "product-images.tcgplayer.com" },
       { protocol: "https", hostname: "static.wikia.nocookie.net" },
+      { protocol: "https", hostname: "limitlesstcg.nyc3.cdn.digitaloceanspaces.com" },
     ],
   },
 };

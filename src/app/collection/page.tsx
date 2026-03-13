@@ -7,6 +7,7 @@ import { CardImage } from "@/components/ui/card-image";
 import { Filter, ChevronDown, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/context/user-context";
+import { categories, CardCategory } from "@/data/mock";
 
 type StatusFilter = "all" | "in_collection" | "shipping" | "shipped" | "sold_back";
 
@@ -20,13 +21,14 @@ const statusLabels: Record<string, string> = {
 
 export default function CollectionPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CardCategory | "all">("all");
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [showSoldMessage, setShowSoldMessage] = useState(false);
   const { collection, sellBackCards } = useUser();
 
-  const filtered = statusFilter === "all"
-    ? collection
-    : collection.filter((item) => item.status === statusFilter);
+  const filtered = collection
+    .filter((item) => statusFilter === "all" || item.status === statusFilter)
+    .filter((item) => categoryFilter === "all" || item.card.series === categoryFilter);
 
   const totalValue = filtered.reduce((sum, item) => sum + item.card.marketValue, 0);
 
@@ -64,7 +66,27 @@ export default function CollectionPage() {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Category Filter */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {(["all", ...categories] as (CardCategory | "all")[]).map((cat) => (
+          <button
+            key={cat}
+            onClick={() => { setCategoryFilter(cat); setSelectedCards(new Set()); }}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
+              categoryFilter === cat
+                ? cat === "Pokemon" ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-black"
+                  : cat === "One Piece" ? "bg-gradient-to-r from-red-600 to-red-500 text-white"
+                  : "bg-red-500 text-white"
+                : "bg-card border border-border text-muted hover:text-foreground"
+            )}
+          >
+            {cat === "all" ? "All" : cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Status Filters */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {(["all", "in_collection", "sold_back"] as StatusFilter[]).map((status) => (
           <button
