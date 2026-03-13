@@ -10,9 +10,10 @@ import { useAuth } from "@/context/auth-context";
 
 const navItems = [
   { href: "/", label: "Gacha" },
+  { href: "/nft-gacha", label: "NFT Gacha" },
+  { href: "/marketplace", label: "Marketplace" },
   { href: "/collection", label: "Collection" },
   { href: "/rankings", label: "Rankings" },
-  { href: "/faq", label: "FAQ" },
 ];
 
 export function Header() {

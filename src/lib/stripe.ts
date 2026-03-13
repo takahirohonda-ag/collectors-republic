@@ -2,7 +2,7 @@ import Stripe from "stripe";
 
 // Only initialize Stripe if the secret key is available
 // During build time, this may not be set
-function getStripeClient() {
+export function getStripeClient() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
     return null;
