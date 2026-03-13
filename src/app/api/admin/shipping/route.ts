@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
 
 const MOCK_SHIPMENTS = [
-  { id: "s1", user: "CryptoKnight", cards: ["Pikachu VMAX", "Mewtwo GX"], status: "pending", requestDate: "2026-03-12", address: "Dubai, UAE", trackingNo: null },
-  { id: "s2", user: "CRYPTOWHALE", cards: ["Umbreon VMAX"], status: "shipped", requestDate: "2026-03-10", address: "Abu Dhabi, UAE", trackingNo: "UAE123456" },
-  { id: "s3", user: "ZenTrader", cards: ["Charizard GX", "Rayquaza V"], status: "delivered", requestDate: "2026-03-05", address: "Riyadh, SA", trackingNo: "SA789012" },
+  { id: "s1", user: "CryptoKnight", cards: ["Pikachu VMAX", "Mewtwo GX"], status: "pending", requestDate: "2026-03-12", address: "Dubai, UAE", trackingNo: null, carrier: null },
+  { id: "s2", user: "CRYPTOWHALE", cards: ["Umbreon VMAX"], status: "shipped", requestDate: "2026-03-10", address: "Abu Dhabi, UAE", trackingNo: "UAE123456", carrier: "fedex" },
+  { id: "s3", user: "ZenTrader", cards: ["Charizard GX", "Rayquaza V"], status: "delivered", requestDate: "2026-03-05", address: "Riyadh, SA", trackingNo: "SA789012", carrier: "aramex" },
 ];
 
 export async function GET() {
@@ -23,7 +23,7 @@ export async function GET() {
       },
     });
 
-    const shipments = orders.map((o: { id: string; user: { username: string }; items: { collection: { card: { name: string } } }[]; status: string; createdAt: Date; addressJson: { city?: string; country?: string }; trackingNumber: string | null }) => ({
+    const shipments = orders.map((o: { id: string; user: { username: string }; items: { collection: { card: { name: string } } }[]; status: string; createdAt: Date; addressJson: { city?: string; country?: string }; trackingNumber: string | null; carrier: string | null }) => ({
       id: o.id,
       user: o.user.username,
       cards: o.items.map((i) => i.collection.card.name),
@@ -31,6 +31,7 @@ export async function GET() {
       requestDate: o.createdAt.toISOString().split("T")[0],
       address: `${(o.addressJson as { city?: string; country?: string })?.city || ""}, ${(o.addressJson as { city?: string; country?: string })?.country || ""}`,
       trackingNo: o.trackingNumber,
+      carrier: o.carrier,
     }));
 
     return NextResponse.json({ shipments, isDbConnected: true });
@@ -51,7 +52,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const { orderId, status, trackingNumber } = await request.json();
+    const { orderId, status, trackingNumber, carrier } = await request.json();
 
     if (!orderId) {
       return NextResponse.json({ error: "orderId is required" }, { status: 400 });
@@ -60,6 +61,7 @@ export async function PATCH(request: NextRequest) {
     const updateData: Record<string, string> = {};
     if (status) updateData.status = status;
     if (trackingNumber) updateData.trackingNumber = trackingNumber;
+    if (carrier) updateData.carrier = carrier;
 
     const order = await prisma.shippingOrder.update({
       where: { id: orderId },

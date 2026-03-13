@@ -19,6 +19,7 @@ model User {
   pointBalance  Int      @default(0) @map("point_balance")
   memberTier    String   @default("Bronze") @map("member_tier")
   supabaseId    String   @unique @map("supabase_id")
+  role          String   @default("user") // user, admin, super_admin
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -26,8 +27,28 @@ model User {
   pullHistory      PullHistory[]
   coinTransactions CoinTransaction[]
   shippingOrders   ShippingOrder[]
+  payments         Payment[]
 
   @@map("users")
+}
+
+// ==========================================
+// Card Series (extensible: Pokemon, One Piece, Dragon Ball, etc.)
+// ==========================================
+model CardSeries {
+  id          String  @id @default(uuid()) @db.Uuid
+  slug        String  @unique // "pokemon", "one-piece", "dragon-ball"
+  name        String  // "Pokémon", "One Piece"
+  description String?
+  imageUrl    String? @map("image_url")
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  cards      Card[]
+  gachaPacks GachaPack[]
+
+  @@map("card_series")
 }
 
 // ==========================================
@@ -39,13 +60,17 @@ model Card {
   imageUrl    String @map("image_url")
   rarity      String // tier1, tier2, tier3, tier4
   marketValue Int    @map("market_value")
-  series      String // Pokemon, One Piece, etc.
+  series      String // legacy: "Pokemon", "One Piece" — use seriesId for new cards
+  seriesId    String? @map("series_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
 
+  cardSeries  CardSeries? @relation(fields: [seriesId], references: [id])
   packCards   PackCard[]
   collections Collection[]
   pullHistory PullHistory[]
 
+  @@index([seriesId])
+  @@index([rarity])
   @@map("cards")
 }
 
@@ -59,15 +84,18 @@ model GachaPack {
   price           Int    // in coins
   expectedValue   Int    @map("expected_value")
   description     String
-  category        String // Pokemon, One Piece
+  category        String // legacy: "Pokemon", "One Piece"
+  seriesId        String? @map("series_id") @db.Uuid
   machineImageUrl String? @map("machine_image_url")
   active          Boolean @default(true)
   createdAt       DateTime @default(now()) @map("created_at")
 
+  cardSeries    CardSeries? @relation(fields: [seriesId], references: [id])
   probabilities PackProbability[]
   packCards     PackCard[]
   pullHistory   PullHistory[]
 
+  @@index([seriesId])
   @@map("gacha_packs")
 }
 
@@ -115,6 +143,7 @@ model Collection {
 
   shippingItems ShippingItem[]
 
+  @@index([userId, status])
   @@map("collections")
 }
 
@@ -133,11 +162,69 @@ model PullHistory {
   pack GachaPack @relation(fields: [packId], references: [id], onDelete: Cascade)
   card Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
+  @@index([userId, pulledAt])
   @@map("pull_history")
 }
 
 // ==========================================
-// Coin Transactions (ledger)
+// Payments (real money — provider-agnostic)
+// ==========================================
+model Payment {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  status            String   @default("pending") // pending, completed, failed, refunded
+  provider          String   // stripe, apple_pay, google_pay, crypto, bank_transfer
+  providerPaymentId String?  @map("provider_payment_id") // stripe payment_intent, etc.
+  providerSessionId String?  @map("provider_session_id") // stripe checkout session, etc.
+
+  // Amount in original currency
+  amount            Int      // in smallest unit (fils for AED, cents for USD)
+  currency          String   // ISO 4217: AED, USD, EUR, JPY, etc.
+
+  // AED equivalent for unified reporting
+  amountAed         Int      @map("amount_aed") // always in fils
+  exchangeRate      Float    @default(1.0) @map("exchange_rate") // rate to AED at time of payment
+
+  // Fee tracking
+  providerFee       Int?     @map("provider_fee") // in original currency smallest unit
+  netAmount         Int?     @map("net_amount") // amount - fee, in original currency
+
+  // What was purchased
+  coinPackageId     String?  @map("coin_package_id")
+  coinsGranted      Int      @default(0) @map("coins_granted")
+
+  metadata          Json?    // flexible extra data
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([provider, status])
+  @@index([currency, createdAt])
+  @@index([providerPaymentId])
+  @@map("payments")
+}
+
+// ==========================================
+// Exchange Rates (cached for AED conversion)
+// ==========================================
+model ExchangeRate {
+  id       String   @id @default(uuid()) @db.Uuid
+  currency String   // ISO 4217: USD, EUR, JPY
+  rateToAed Float   @map("rate_to_aed") // 1 unit of currency = X AED
+  source   String   @default("manual") // manual, api
+  validAt  DateTime @map("valid_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([currency, validAt])
+  @@index([currency])
+  @@map("exchange_rates")
+}
+
+// ==========================================
+// Coin Transactions (internal ledger)
 // ==========================================
 model CoinTransaction {
   id              String   @id @default(uuid()) @db.Uuid
@@ -146,13 +233,15 @@ model CoinTransaction {
   amount          Int      // positive = credit, negative = debit
   balanceAfter    Int      @map("balance_after")
   referenceId     String?  @map("reference_id") // pack pull ID, collection ID, etc.
-  stripePaymentId String?  @map("stripe_payment_id")
+  paymentId       String?  @map("payment_id") @db.Uuid // link to Payment for purchases
+  stripePaymentId String?  @map("stripe_payment_id") // legacy
   description     String?
   createdAt       DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([type, createdAt])
   @@map("coin_transactions")
 }
 
@@ -160,17 +249,25 @@ model CoinTransaction {
 // Shipping
 // ==========================================
 model ShippingOrder {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
-  status         String   @default("pending") // pending, processing, shipped, delivered
-  addressJson    Json     @map("address_json")
-  trackingNumber String?  @map("tracking_number")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  status          String   @default("pending") // pending, processing, shipped, in_transit, delivered, returned
+  addressJson     Json     @map("address_json")
+  trackingNumber  String?  @map("tracking_number")
+  carrier         String?  // fedex, dhl, aramex, emirates_post, manual
+  carrierService  String?  @map("carrier_service") // e.g. "FedEx International Priority"
+  shippingCostAed Int?     @map("shipping_cost_aed") // in fils
+  estimatedDelivery DateTime? @map("estimated_delivery")
+  actualDelivery    DateTime? @map("actual_delivery")
+  carrierTrackingUrl String? @map("carrier_tracking_url")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   items ShippingItem[]
 
+  @@index([status])
+  @@index([carrier])
   @@map("shipping_orders")
 }
 

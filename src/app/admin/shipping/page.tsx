@@ -12,6 +12,7 @@ interface Shipment {
   requestDate: string;
   address: string;
   trackingNo: string | null;
+  carrier: string | null;
 }
 
 const statusConfig: Record<string, { icon: typeof Clock; color: string; label: string }> = {
@@ -36,18 +37,20 @@ export default function AdminShippingPage() {
       });
   }, []);
 
-  const updateShipment = async (orderId: string, status: string, trackingNumber?: string) => {
+  const [carrierInputs, setCarrierInputs] = useState<Record<string, string>>({});
+
+  const updateShipment = async (orderId: string, status: string, trackingNumber?: string, carrier?: string) => {
     setUpdating(orderId);
     await fetch("/api/admin/shipping", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, status, trackingNumber }),
+      body: JSON.stringify({ orderId, status, trackingNumber, carrier }),
     });
 
     setShipments((prev) =>
       prev.map((s) =>
         s.id === orderId
-          ? { ...s, status, trackingNo: trackingNumber || s.trackingNo }
+          ? { ...s, status, trackingNo: trackingNumber || s.trackingNo, carrier: carrier || s.carrier }
           : s
       )
     );
@@ -97,7 +100,19 @@ export default function AdminShippingPage() {
                 <span className="text-xs text-muted">📍 {shipment.address}</span>
 
                 {shipment.status === "pending" && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={carrierInputs[shipment.id] || ""}
+                      onChange={(e) => setCarrierInputs((prev) => ({ ...prev, [shipment.id]: e.target.value }))}
+                      className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:border-red-500 focus:outline-none"
+                    >
+                      <option value="">Carrier</option>
+                      <option value="fedex">FedEx</option>
+                      <option value="dhl">DHL</option>
+                      <option value="aramex">Aramex</option>
+                      <option value="emirates_post">Emirates Post</option>
+                      <option value="manual">Manual</option>
+                    </select>
                     <input
                       placeholder="Tracking #"
                       value={trackingInputs[shipment.id] || ""}
@@ -107,7 +122,7 @@ export default function AdminShippingPage() {
                     <Button
                       size="sm"
                       disabled={updating === shipment.id}
-                      onClick={() => updateShipment(shipment.id, "shipped", trackingInputs[shipment.id])}
+                      onClick={() => updateShipment(shipment.id, "shipped", trackingInputs[shipment.id], carrierInputs[shipment.id])}
                     >
                       {updating === shipment.id ? "..." : "Mark Shipped"}
                     </Button>
@@ -116,6 +131,9 @@ export default function AdminShippingPage() {
 
                 {shipment.status === "shipped" && (
                   <div className="flex items-center gap-2">
+                    {shipment.carrier && (
+                      <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 uppercase">{shipment.carrier}</span>
+                    )}
                     <span className="text-xs text-muted">📦 {shipment.trackingNo}</span>
                     <Button
                       size="sm"

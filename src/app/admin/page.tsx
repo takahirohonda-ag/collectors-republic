@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { formatNumber } from "@/lib/utils";
 import { DollarSign, Users, Package, Truck, Database } from "lucide-react";
 
 interface Stats {
-  totalRevenue: number;
+  totalRevenueAed: number;
   totalUsers: number;
   packsOpened: number;
   pendingShipments: number;
+  revenueByProvider: { provider: string; totalAed: number; count: number }[];
+  revenueByCurrency: { currency: string; total: number; totalAed: number; count: number }[];
   recentActivity: { user: string; action: string; time: string; amount: string }[];
   isDbConnected: boolean;
+}
+
+function formatAed(fils: number): string {
+  return `AED ${(fils / 100).toLocaleString("en-AE", { minimumFractionDigits: 2 })}`;
 }
 
 export default function AdminDashboard() {
@@ -23,9 +28,9 @@ export default function AdminDashboard() {
   if (!stats) return <div className="p-8 text-center text-muted">Loading...</div>;
 
   const statCards = [
-    { label: "Total Revenue", value: `${formatNumber(stats.totalRevenue)} Coins`, icon: DollarSign, color: "text-green-400" },
-    { label: "Total Users", value: formatNumber(stats.totalUsers), icon: Users, color: "text-blue-400" },
-    { label: "Packs Opened", value: formatNumber(stats.packsOpened), icon: Package, color: "text-amber-400" },
+    { label: "Total Revenue", value: formatAed(stats.totalRevenueAed), icon: DollarSign, color: "text-green-400" },
+    { label: "Total Users", value: stats.totalUsers.toLocaleString(), icon: Users, color: "text-blue-400" },
+    { label: "Packs Opened", value: stats.packsOpened.toLocaleString(), icon: Package, color: "text-amber-400" },
     { label: "Pending Shipping", value: String(stats.pendingShipments), icon: Truck, color: "text-purple-400" },
   ];
 
@@ -50,6 +55,28 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Revenue by currency breakdown */}
+      {stats.revenueByCurrency.length > 0 && (
+        <div className="rounded-xl bg-card border border-border">
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-semibold">Revenue by Currency</h2>
+          </div>
+          <div className="divide-y divide-border">
+            {stats.revenueByCurrency.map((item) => (
+              <div key={item.currency} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-bold text-green-400">{item.currency}</span>
+                  <span className="text-xs text-muted">{item.count} payments</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold">{formatAed(item.totalAed)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl bg-card border border-border">
         <div className="border-b border-border p-4">

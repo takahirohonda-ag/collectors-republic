@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
     }
 
     const totalCoins = Number(coins) + Number(bonusCoins || 0);
+    const amountTotal = session.amount_total || 0;
+    const currency = (session.currency || "aed").toUpperCase();
 
     const prisma = getPrisma();
     if (prisma && userId) {
@@ -47,11 +49,44 @@ export async function POST(req: NextRequest) {
         if (user) {
           const newBalance = user.coinBalance + totalCoins;
 
+          // Calculate AED equivalent
+          let amountAed = amountTotal;
+          let exchangeRate = 1.0;
+          if (currency !== "AED") {
+            const rate = await prisma.exchangeRate.findFirst({
+              where: { currency },
+              orderBy: { validAt: "desc" },
+            });
+            if (rate) {
+              exchangeRate = rate.rateToAed;
+              amountAed = Math.round(amountTotal * exchangeRate);
+            }
+          }
+
           await prisma.$transaction([
+            // Record payment
+            prisma.payment.create({
+              data: {
+                userId: user.id,
+                status: "completed",
+                provider: "stripe",
+                providerPaymentId: session.payment_intent as string,
+                providerSessionId: session.id,
+                amount: amountTotal,
+                currency,
+                amountAed,
+                exchangeRate,
+                coinPackageId: packageId,
+                coinsGranted: totalCoins,
+                metadata: { packageId, coins, bonusCoins },
+              },
+            }),
+            // Credit coins
             prisma.user.update({
               where: { id: user.id },
               data: { coinBalance: newBalance },
             }),
+            // Record transaction
             prisma.coinTransaction.create({
               data: {
                 userId: user.id,
@@ -64,13 +99,12 @@ export async function POST(req: NextRequest) {
             }),
           ]);
 
-          console.log(`Coins credited: ${totalCoins} to user ${user.id}`);
+          console.log(`Payment recorded & coins credited: ${totalCoins} to user ${user.id}`);
         } else {
           console.error(`User not found for supabaseId: ${userId}`);
         }
       } catch (dbError) {
         console.error("DB error in webhook:", dbError);
-        // Log for manual reconciliation
       }
     } else {
       console.log(`Payment received (no DB): ${totalCoins} coins for package ${packageId}`);
