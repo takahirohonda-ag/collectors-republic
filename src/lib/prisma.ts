@@ -11,7 +11,7 @@ export function getPrisma() {
     initAttempted = true;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { PrismaClient } = require("@/generated/prisma/client");
+      const { PrismaClient } = require("@/generated/prisma");
       prismaClient = new PrismaClient({
         datasourceUrl: process.env.DATABASE_URL,
       });
