@@ -1,25 +1,24 @@
 // Prisma client singleton with graceful fallback when DB is not connected
 
-let prismaClient: ReturnType<typeof createPrismaClient> | null = null;
-
-function createPrismaClient() {
-  try {
-    // Dynamic import at runtime to avoid build errors when generated client doesn't exist
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require("../../src/generated/prisma/client");
-    return new PrismaClient({
-      datasourceUrl: process.env.DATABASE_URL,
-    });
-  } catch {
-    return null;
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prismaClient: any | null = null;
+let initAttempted = false;
 
 export function getPrisma() {
   if (!process.env.DATABASE_URL) return null;
 
-  if (!prismaClient) {
-    prismaClient = createPrismaClient();
+  if (!initAttempted) {
+    initAttempted = true;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { PrismaClient } = require("@/generated/prisma/client");
+      prismaClient = new PrismaClient({
+        datasourceUrl: process.env.DATABASE_URL,
+      });
+    } catch (e) {
+      console.error("Prisma client init failed:", e);
+      prismaClient = null;
+    }
   }
   return prismaClient;
 }
