@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { formatNumber } from "@/lib/utils";
 import { Coins, User, Menu, X, LogIn, LogOut } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +19,9 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { coinBalance } = useUser();
   const { user, loading, signOut } = useAuth();
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) return null;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">

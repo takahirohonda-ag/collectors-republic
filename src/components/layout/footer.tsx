@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/terms", label: "Terms" },
@@ -9,6 +12,10 @@ const links = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/admin")) return null;
+
   return (
     <footer className="border-t border-border bg-card/50 py-6">
       <div className="mx-auto max-w-7xl px-4">
