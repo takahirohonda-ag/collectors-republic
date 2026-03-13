@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PrismaClient } from "@/generated/prisma/client";
 
 export async function GET() {
   const hasDbUrl = !!process.env.DATABASE_URL;
@@ -9,13 +10,11 @@ export async function GET() {
   let initError = "none";
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("@/generated/prisma");
-    const { PrismaClient } = mod;
-    prismaStatus = `module loaded, keys: ${Object.keys(mod).slice(0, 5).join(",")}`;
-    const prisma = new PrismaClient({
+    prismaStatus = "PrismaClient imported";
+    const prisma = new (PrismaClient as any)({
       datasourceUrl: process.env.DATABASE_URL,
     });
+    prismaStatus = "initialized";
     const count = await prisma.user.count();
     queryResult = `success: ${count} users`;
     await prisma.$disconnect();
