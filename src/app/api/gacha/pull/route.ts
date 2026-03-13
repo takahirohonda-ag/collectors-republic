@@ -3,15 +3,13 @@ import { gachaPacks } from "@/data/mock";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getPrisma } from "@/lib/prisma";
 import type { CardRarity } from "@/types";
-import { mintCardNft } from "@/lib/nft/mint";
 
 /**
  * POST /api/gacha/pull
- * Server-side gacha pull with DB integration + NFT minting.
+ * Server-side gacha pull with DB integration.
  * 1. Verify balance & deduct coins
  * 2. Select card via probability engine
  * 3. Add to collection
- * 4. Mint NFT (async, non-blocking)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -80,9 +78,9 @@ export async function POST(request: NextRequest) {
 
         // Transaction: deduct coins + add to collection + record history
         const newBalance = user.coinBalance - pack.price;
-        const sellBackValue = Math.floor(selectedCard.marketValue * 0.9); // 90% FMV (Courtyard-style)
+        const sellBackValue = Math.floor(selectedCard.marketValue * 0.8);
 
-        const [, collection] = await prisma.$transaction([
+        await prisma.$transaction([
           prisma.user.update({
             where: { id: user.id },
             data: { coinBalance: newBalance },
@@ -114,52 +112,12 @@ export async function POST(request: NextRequest) {
           }),
         ]);
 
-        // Mint NFT in the background (don't block the response)
-        let nftMintPromise: { nftId?: string } = {};
-        try {
-          // Fire-and-forget: mint NFT asynchronously
-          const mintPromise = mintCardNft({
-            userId: user.id,
-            cardId: dbCard.id,
-            cardName: dbCard.name,
-            cardSeries: dbCard.series,
-            cardRarity: dbCard.rarity,
-            cardImageUrl: dbCard.imageUrl,
-            marketValue: dbCard.marketValue,
-          }).then(async (result) => {
-            // Link NFT to collection item
-            await prisma.collection.update({
-              where: { id: collection.id },
-              data: { nftId: result.nftId },
-            });
-            return result;
-          }).catch((err) => {
-            console.error("NFT mint failed (will retry):", err);
-            return null;
-          });
-
-          // Wait briefly for fast mints, but don't block for long
-          const raceResult = await Promise.race([
-            mintPromise,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-          ]);
-          if (raceResult) {
-            nftMintPromise = { nftId: raceResult.nftId };
-          }
-        } catch {
-          // NFT minting failure doesn't block gacha result
-        }
-
         return NextResponse.json({
           card: selectedCard,
           rarity: selectedRarity,
           packId: pack.id,
           pullId,
           newBalance,
-          collectionId: collection.id,
-          nft: nftMintPromise.nftId
-            ? { nftId: nftMintPromise.nftId, status: "minted" }
-            : { status: "minting" }, // Client can poll /api/nft/mint-status
         });
       } catch (dbError) {
         console.error("DB pull error, falling back to mock:", dbError);
@@ -172,7 +130,6 @@ export async function POST(request: NextRequest) {
       rarity: selectedRarity,
       packId: pack.id,
       pullId,
-      nft: { status: "mock" },
     });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

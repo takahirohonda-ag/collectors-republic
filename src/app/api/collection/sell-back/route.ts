@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getPrisma } from "@/lib/prisma";
 
-const SELL_BACK_RATE = 0.9; // 90% FMV (Courtyard-style instant buyback)
+const SELL_BACK_RATE = 0.8; // 80% of market value
 
 /**
  * POST /api/collection/sell-back

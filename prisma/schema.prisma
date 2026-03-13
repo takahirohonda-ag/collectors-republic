@@ -28,14 +28,6 @@ model User {
   coinTransactions CoinTransaction[]
   shippingOrders   ShippingOrder[]
   payments         Payment[]
-  wallet           Wallet?
-  nfts             Nft[]
-  listingsAsSeller Listing[]      @relation("ListingSeller")
-  listingsAsBuyer  Listing[]      @relation("ListingBuyer")
-  offers           Offer[]
-  transfersFrom    NftTransfer[]  @relation("TransferFrom")
-  transfersTo      NftTransfer[]  @relation("TransferTo")
-  redemptions      RedemptionRequest[]
 
   @@map("users")
 }
@@ -76,9 +68,6 @@ model Card {
   packCards     PackCard[]
   collections   Collection[]
   pullHistory   PullHistory[]
-  nfts          Nft[]
-  physicalCards PhysicalCard[]
-  priceHistory  PriceHistory[]
 
   @@index([seriesId])
   @@index([rarity])
@@ -144,15 +133,13 @@ model Collection {
   id           String   @id @default(uuid()) @db.Uuid
   userId       String   @map("user_id") @db.Uuid
   cardId       String   @map("card_id") @db.Uuid
-  nftId        String?  @unique @map("nft_id") @db.Uuid
   acquiredAt   DateTime @default(now()) @map("acquired_at")
-  status       String   @default("in_collection") // in_collection, shipping, shipped, sold_back, listed, redeemed
+  status       String   @default("in_collection") // in_collection, shipping, shipped, sold_back
   sellBackValue Int     @map("sell_back_value")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  nft  Nft? @relation(fields: [nftId], references: [id])
 
   shippingItems ShippingItem[]
 
@@ -187,26 +174,22 @@ model Payment {
   userId            String   @map("user_id") @db.Uuid
   status            String   @default("pending") // pending, completed, failed, refunded
   provider          String   // stripe, apple_pay, google_pay, crypto, bank_transfer
-  providerPaymentId String?  @map("provider_payment_id") // stripe payment_intent, etc.
-  providerSessionId String?  @map("provider_session_id") // stripe checkout session, etc.
+  providerPaymentId String?  @map("provider_payment_id")
+  providerSessionId String?  @map("provider_session_id")
 
-  // Amount in original currency
-  amount            Int      // in smallest unit (fils for AED, cents for USD)
-  currency          String   // ISO 4217: AED, USD, EUR, JPY, etc.
+  amount            Int
+  currency          String
 
-  // AED equivalent for unified reporting
-  amountAed         Int      @map("amount_aed") // always in fils
-  exchangeRate      Float    @default(1.0) @map("exchange_rate") // rate to AED at time of payment
+  amountAed         Int      @map("amount_aed")
+  exchangeRate      Float    @default(1.0) @map("exchange_rate")
 
-  // Fee tracking
-  providerFee       Int?     @map("provider_fee") // in original currency smallest unit
-  netAmount         Int?     @map("net_amount") // amount - fee, in original currency
+  providerFee       Int?     @map("provider_fee")
+  netAmount         Int?     @map("net_amount")
 
-  // What was purchased
   coinPackageId     String?  @map("coin_package_id")
   coinsGranted      Int      @default(0) @map("coins_granted")
 
-  metadata          Json?    // flexible extra data
+  metadata          Json?
 
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -225,9 +208,9 @@ model Payment {
 // ==========================================
 model ExchangeRate {
   id       String   @id @default(uuid()) @db.Uuid
-  currency String   // ISO 4217: USD, EUR, JPY
-  rateToAed Float   @map("rate_to_aed") // 1 unit of currency = X AED
-  source   String   @default("manual") // manual, api
+  currency String
+  rateToAed Float   @map("rate_to_aed")
+  source   String   @default("manual")
   validAt  DateTime @map("valid_at")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -243,11 +226,11 @@ model CoinTransaction {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @map("user_id") @db.Uuid
   type            String   // purchase, spend, sell_back, refund, bonus
-  amount          Int      // positive = credit, negative = debit
+  amount          Int
   balanceAfter    Int      @map("balance_after")
-  referenceId     String?  @map("reference_id") // pack pull ID, collection ID, etc.
-  paymentId       String?  @map("payment_id") @db.Uuid // link to Payment for purchases
-  stripePaymentId String?  @map("stripe_payment_id") // legacy
+  referenceId     String?  @map("reference_id")
+  paymentId       String?  @map("payment_id") @db.Uuid
+  stripePaymentId String?  @map("stripe_payment_id")
   description     String?
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -264,21 +247,20 @@ model CoinTransaction {
 model ShippingOrder {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @map("user_id") @db.Uuid
-  status          String   @default("pending") // pending, processing, shipped, in_transit, delivered, returned
+  status          String   @default("pending")
   addressJson     Json     @map("address_json")
   trackingNumber  String?  @map("tracking_number")
-  carrier         String?  // fedex, dhl, aramex, emirates_post, manual
-  carrierService  String?  @map("carrier_service") // e.g. "FedEx International Priority"
-  shippingCostAed Int?     @map("shipping_cost_aed") // in fils
+  carrier         String?
+  carrierService  String?  @map("carrier_service")
+  shippingCostAed Int?     @map("shipping_cost_aed")
   estimatedDelivery DateTime? @map("estimated_delivery")
   actualDelivery    DateTime? @map("actual_delivery")
   carrierTrackingUrl String? @map("carrier_tracking_url")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   items      ShippingItem[]
-  redemption RedemptionRequest?
 
   @@index([status])
   @@index([carrier])
@@ -303,7 +285,7 @@ model CoinPackage {
   id           String  @id @default(uuid()) @db.Uuid
   coins        Int
   bonusCoins   Int     @default(0) @map("bonus_coins")
-  priceAed     Int     @map("price_aed") // in fils (1 AED = 100 fils)
+  priceAed     Int     @map("price_aed")
   stripePriceId String? @map("stripe_price_id")
   popular      Boolean @default(false)
   active       Boolean @default(true)
@@ -311,187 +293,4 @@ model CoinPackage {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("coin_packages")
-}
-
-// ==========================================
-// NFTs (on-chain tokens linked to physical cards)
-// ==========================================
-model Nft {
-  id              String    @id @default(uuid()) @db.Uuid
-  tokenId         Int       @unique @map("token_id")
-  contractAddress String    @map("contract_address")
-  chainId         Int       @default(137) @map("chain_id") // 137 = Polygon mainnet, 80002 = Amoy testnet
-  metadataUri     String    @map("metadata_uri") // IPFS URI
-  imageUri        String?   @map("image_uri") // IPFS image URI
-
-  cardId          String    @map("card_id") @db.Uuid
-  ownerId         String    @map("owner_id") @db.Uuid
-  physicalCardId  String?   @unique @map("physical_card_id") @db.Uuid
-
-  status          String    @default("minting") // minting, active, listed, redeemed, burned
-  mintTxHash      String?   @map("mint_tx_hash")
-  mintedAt        DateTime? @map("minted_at")
-  burnedAt        DateTime? @map("burned_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-
-  card            Card          @relation(fields: [cardId], references: [id])
-  owner           User          @relation(fields: [ownerId], references: [id])
-  physicalCard    PhysicalCard? @relation(fields: [physicalCardId], references: [id])
-  collection      Collection?
-  listings        Listing[]
-  offers          Offer[]
-  transfers       NftTransfer[]
-  redemption      RedemptionRequest?
-
-  @@index([ownerId])
-  @@index([cardId])
-  @@index([status])
-  @@map("nfts")
-}
-
-// ==========================================
-// Wallets (embedded wallets for users)
-// ==========================================
-model Wallet {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @unique @map("user_id") @db.Uuid
-  address   String   @unique // Polygon address
-  provider  String   @default("thirdweb") // thirdweb, external
-  chainId   Int      @default(137) @map("chain_id")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("wallets")
-}
-
-// ==========================================
-// Physical Cards (vault custody)
-// ==========================================
-model PhysicalCard {
-  id             String    @id @default(uuid()) @db.Uuid
-  cardId         String    @map("card_id") @db.Uuid
-  serialNumber   String?   @unique @map("serial_number") // unique physical identifier
-  gradeProvider  String?   @map("grade_provider") // PSA, CGC, BGS
-  gradeScore     Decimal?  @map("grade_score") @db.Decimal(4, 1)
-  certificateNo  String?   @unique @map("certificate_no")
-  condition      String    @default("graded") // raw, graded
-  vaultLocation  String    @default("dubai-main") @map("vault_location")
-  vaultStatus    String    @default("in_vault") @map("vault_status") // in_vault, releasing, released, damaged
-  imageUrls      Json?     @map("image_urls") // front/back scan URLs
-  acquiredAt     DateTime  @default(now()) @map("acquired_at")
-  releasedAt     DateTime? @map("released_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-
-  card Card  @relation(fields: [cardId], references: [id])
-  nft  Nft?
-
-  @@index([vaultStatus])
-  @@index([cardId])
-  @@map("physical_cards")
-}
-
-// ==========================================
-// Marketplace Listings
-// ==========================================
-model Listing {
-  id         String    @id @default(uuid()) @db.Uuid
-  nftId      String    @map("nft_id") @db.Uuid
-  sellerId   String    @map("seller_id") @db.Uuid
-  priceCoins Int       @map("price_coins")
-  priceAed   Decimal?  @map("price_aed") @db.Decimal(12, 2)
-  status     String    @default("active") // active, sold, cancelled
-  listedAt   DateTime  @default(now()) @map("listed_at")
-  soldAt     DateTime? @map("sold_at")
-  buyerId    String?   @map("buyer_id") @db.Uuid
-
-  nft    Nft  @relation(fields: [nftId], references: [id])
-  seller User @relation("ListingSeller", fields: [sellerId], references: [id])
-  buyer  User? @relation("ListingBuyer", fields: [buyerId], references: [id])
-
-  @@index([status])
-  @@index([nftId])
-  @@index([sellerId])
-  @@map("listings")
-}
-
-// ==========================================
-// Marketplace Offers
-// ==========================================
-model Offer {
-  id         String    @id @default(uuid()) @db.Uuid
-  nftId      String    @map("nft_id") @db.Uuid
-  bidderId   String    @map("bidder_id") @db.Uuid
-  priceCoins Int       @map("price_coins")
-  status     String    @default("pending") // pending, accepted, rejected, expired, cancelled
-  expiresAt  DateTime  @map("expires_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-
-  nft    Nft  @relation(fields: [nftId], references: [id])
-  bidder User @relation(fields: [bidderId], references: [id])
-
-  @@index([nftId])
-  @@index([bidderId])
-  @@map("offers")
-}
-
-// ==========================================
-// NFT Transfer History
-// ==========================================
-model NftTransfer {
-  id       String   @id @default(uuid()) @db.Uuid
-  nftId    String   @map("nft_id") @db.Uuid
-  fromId   String?  @map("from_id") @db.Uuid // null = mint
-  toId     String   @map("to_id") @db.Uuid
-  type     String   // mint, sale, transfer, redemption_burn
-  txHash   String?  @map("tx_hash")
-  priceCoins Int?   @map("price_coins")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  nft  Nft   @relation(fields: [nftId], references: [id])
-  from User? @relation("TransferFrom", fields: [fromId], references: [id])
-  to   User  @relation("TransferTo", fields: [toId], references: [id])
-
-  @@index([nftId])
-  @@map("nft_transfers")
-}
-
-// ==========================================
-// Redemption Requests (NFT → physical card)
-// ==========================================
-model RedemptionRequest {
-  id              String    @id @default(uuid()) @db.Uuid
-  nftId           String    @unique @map("nft_id") @db.Uuid
-  userId          String    @map("user_id") @db.Uuid
-  shippingOrderId String?   @unique @map("shipping_order_id") @db.Uuid
-  status          String    @default("pending") // pending, approved, shipping, completed, cancelled
-  shippingFeeAed  Int?      @map("shipping_fee_aed") // in fils
-  requestedAt     DateTime  @default(now()) @map("requested_at")
-  completedAt     DateTime? @map("completed_at")
-
-  nft           Nft            @relation(fields: [nftId], references: [id])
-  user          User           @relation(fields: [userId], references: [id])
-  shippingOrder ShippingOrder? @relation(fields: [shippingOrderId], references: [id])
-
-  @@index([userId])
-  @@index([status])
-  @@map("redemption_requests")
-}
-
-// ==========================================
-// Price History (FMV tracking)
-// ==========================================
-model PriceHistory {
-  id         String   @id @default(uuid()) @db.Uuid
-  cardId     String   @map("card_id") @db.Uuid
-  priceAed   Decimal  @map("price_aed") @db.Decimal(12, 2)
-  priceCoins Int      @map("price_coins")
-  source     String   // marketplace, external, algorithm, manual
-  recordedAt DateTime @default(now()) @map("recorded_at")
-
-  card Card @relation(fields: [cardId], references: [id])
-
-  @@index([cardId, recordedAt])
-  @@map("price_history")
 }
