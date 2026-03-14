@@ -6,7 +6,8 @@ import { Card, GachaPack, CardRarity } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardImage } from "@/components/ui/card-image";
-import { Particles, Sparkles } from "./particles";
+import { EffectsCanvas, EffectMode } from "./effects-canvas";
+import { Sparkles } from "./particles";
 import { X, Coins, AlertCircle } from "lucide-react";
 import {
   playKyuiin,
@@ -26,107 +27,50 @@ interface PackOpeningModalProps {
   onSellBack: (coins: number) => void;
 }
 
-// Phase flow: dice-rise → dice-color → dice-land → (freeze?) → (revival?) → card-reveal → result
-type Phase =
-  | "dice-rise"    // Dice floating up with kyuiin
-  | "dice-color"   // Dice color changes based on rarity
-  | "dice-land"    // Dice slam onto plate
-  | "freeze"       // Screen blackout (tier3+)
-  | "revival"      // Fake-out then upgrade (random chance on tier2+)
-  | "card-reveal"  // Card appears
-  | "result";      // Summary
+type Phase = "buildup" | "peak" | "blackout" | "reveal" | "result";
 
-const RARITY_CONFIG: Record<CardRarity, {
-  color: string;
-  glowColor: string;
-  bgGradient: string;
-  label: string;
-  diceColor: string;
-  particleColor: string;
-}> = {
-  tier1: {
-    color: "#22c55e",
-    glowColor: "rgba(34,197,94,0.4)",
-    bgGradient: "from-green-900/40 via-black to-black",
-    label: "COMMON",
-    diceColor: "#ffffff",
-    particleColor: "#22c55e",
-  },
-  tier2: {
-    color: "#3b82f6",
-    glowColor: "rgba(59,130,246,0.5)",
-    bgGradient: "from-blue-900/50 via-blue-950/30 to-black",
-    label: "RARE",
-    diceColor: "#ef4444",
-    particleColor: "#60a5fa",
-  },
-  tier3: {
-    color: "#a855f7",
-    glowColor: "rgba(168,85,247,0.5)",
-    bgGradient: "from-purple-900/50 via-purple-950/30 to-black",
-    label: "ULTRA RARE",
-    diceColor: "#1a1a2e",
-    particleColor: "#c084fc",
-  },
-  tier4: {
-    color: "#f59e0b",
-    glowColor: "rgba(245,158,11,0.6)",
-    bgGradient: "from-amber-900/60 via-red-950/30 to-black",
-    label: "🔥 LEGENDARY 🔥",
-    diceColor: "#f59e0b",
-    particleColor: "#fbbf24",
-  },
+const RARITY_COLORS: Record<CardRarity, { primary: string; secondary: string; label: string }> = {
+  tier1: { primary: "#10b981", secondary: "#34d399", label: "COMMON" },
+  tier2: { primary: "#6366f1", secondary: "#818cf8", label: "RARE" },
+  tier3: { primary: "#d946ef", secondary: "#f0abfc", label: "ULTRA RARE" },
+  tier4: { primary: "#f59e0b", secondary: "#fcd34d", label: "LEGENDARY" },
 };
 
-// Dice faces for display
-const DICE_FACES = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+function getRarityIndex(r: CardRarity) { return { tier1: 0, tier2: 1, tier3: 2, tier4: 3 }[r]; }
 
-function getRarityIndex(rarity: CardRarity): number {
-  return { tier1: 0, tier2: 1, tier3: 2, tier4: 3 }[rarity];
-}
-
-// Generate dice result based on rarity
-function getDiceResult(rarity: CardRarity): [number, number, number] {
-  switch (rarity) {
-    case "tier4": return [0, 0, 0]; // ピンゾロ (1-1-1)
-    case "tier3": return [5, 5, 5]; // ゾロ目
-    case "tier2": return [3, 4, 5]; // ジゴロ (4-5-6)
-    default: {
-      // Random non-matching
-      const a = Math.floor(Math.random() * 6);
-      let b = Math.floor(Math.random() * 6);
-      while (b === a) b = Math.floor(Math.random() * 6);
-      let c = Math.floor(Math.random() * 6);
-      while (c === a || c === b) c = Math.floor(Math.random() * 6);
-      return [a, b, c];
-    }
-  }
-}
+// Color stages for buildup: green → blue → purple → gold
+const STAGE_COLORS = [
+  { primary: "#10b981", secondary: "#34d399" },
+  { primary: "#6366f1", secondary: "#818cf8" },
+  { primary: "#d946ef", secondary: "#f0abfc" },
+  { primary: "#f59e0b", secondary: "#fcd34d" },
+];
 
 export function PackOpeningModal({
-  pack,
-  quantity,
-  onClose,
-  onKeepAll,
-  onSellBack,
+  pack, quantity, onClose, onKeepAll, onSellBack,
 }: PackOpeningModalProps) {
-  const [phase, setPhase] = useState<Phase>("dice-rise");
+  const [phase, setPhase] = useState<Phase>("buildup");
   const [pulledCards, setPulledCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [settled, setSettled] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dice animation state
-  const [diceColorStage, setDiceColorStage] = useState(0); // 0=white, 1=red, 2=dark, 3=gold
-  const [diceValues, setDiceValues] = useState<[number, number, number]>([0, 0, 0]);
-  const [diceSpinning, setDiceSpinning] = useState(true);
-  const [screenShake, setScreenShake] = useState(false);
-  const [showParticles, setShowParticles] = useState(false);
+  const [effectMode, setEffectMode] = useState<EffectMode>("charge");
+  const [effectColor, setEffectColor] = useState("#10b981");
+  const [effectSecondary, setEffectSecondary] = useState("#34d399");
+  const [effectIntensity, setEffectIntensity] = useState(0.5);
+  const [colorStage, setColorStage] = useState(0);
+  const [bgStyle, setBgStyle] = useState("bg-black");
+  const [screenFlash, setScreenFlash] = useState<string | null>(null);
   const [cardRevealed, setCardRevealed] = useState(false);
-  const [flashWhite, setFlashWhite] = useState(false);
+  const [showText, setShowText] = useState("");
 
   const initRef = useRef(false);
-  const cardsRef = useRef<Card[]>([]);
+
+  const flash = useCallback((color: string, duration = 150) => {
+    setScreenFlash(color);
+    setTimeout(() => setScreenFlash(null), duration);
+  }, []);
 
   const pullFromApi = useCallback(async () => {
     try {
@@ -149,136 +93,148 @@ export function PackOpeningModal({
     }
   }, [pack.id, quantity]);
 
-  // === MAIN ANIMATION SEQUENCE ===
+  // === MAIN CINEMATIC SEQUENCE ===
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const t = (fn: () => void, ms: number) => {
-      timers.push(setTimeout(fn, ms));
-    };
+    const t = (fn: () => void, ms: number) => { timers.push(setTimeout(fn, ms)); };
 
     (async () => {
-      // Start pulling cards immediately (parallel with animation)
       const pullPromise = pullFromApi();
 
-      // --- Phase 1: DICE RISE (0-2.5s) ---
-      // キュイーン sound
-      playKyuiin(2.5);
+      // --- BUILDUP (0-4s): Energy charging, キュイーン ---
+      playKyuiin(3.5);
+      setEffectMode("charge");
+      setEffectIntensity(0.3);
+      setBgStyle("bg-black");
 
-      // Dice spin rapidly during rise
-      const spinInterval = setInterval(() => {
-        setDiceValues([
-          Math.floor(Math.random() * 6),
-          Math.floor(Math.random() * 6),
-          Math.floor(Math.random() * 6),
-        ]);
-      }, 80);
-      timers.push(spinInterval as unknown as ReturnType<typeof setTimeout>);
+      // Gradually increase intensity
+      t(() => setEffectIntensity(0.5), 500);
+      t(() => setEffectIntensity(0.7), 1000);
+      t(() => setEffectIntensity(0.9), 1500);
 
-      // Wait for cards
+      // Get cards result
       const cards = await pullPromise;
-      if (!cards || cards.length === 0) {
-        clearInterval(spinInterval);
-        return;
-      }
-      cardsRef.current = cards;
+      if (!cards || cards.length === 0) return;
       setPulledCards(cards);
 
-      const firstCard = cards[0];
-      const targetRarity = getRarityIndex(firstCard.rarity);
+      const rarity = cards[0].rarity;
+      const targetStage = getRarityIndex(rarity);
+      const rc = RARITY_COLORS[rarity];
 
-      // --- Phase 2: DICE COLOR CHANGES (2.5-4.5s) ---
-      t(() => {
-        setPhase("dice-color");
-        // Always start white, then upgrade through colors up to rarity
-        if (targetRarity >= 1) {
-          t(() => { setDiceColorStage(1); playColorUpgrade(); setScreenShake(true); t(() => setScreenShake(false), 200); }, 300);
-        }
-        if (targetRarity >= 2) {
-          t(() => { setDiceColorStage(2); playColorUpgrade(); setScreenShake(true); t(() => setScreenShake(false), 200); }, 800);
-        }
-        if (targetRarity >= 3) {
-          t(() => { setDiceColorStage(3); playColorUpgrade(); setScreenShake(true); t(() => setScreenShake(false), 200); }, 1300);
-        }
-      }, 2500);
-
-      // --- Phase 3: DICE LAND (4.5s) ---
-      t(() => {
-        clearInterval(spinInterval);
-        setDiceSpinning(false);
-        const result = getDiceResult(firstCard.rarity);
-        setDiceValues(result);
-        setPhase("dice-land");
-        playDiceImpact();
-        setScreenShake(true);
-        t(() => setScreenShake(false), 300);
-        setFlashWhite(true);
-        t(() => setFlashWhite(false), 150);
-      }, 4500);
-
-      // --- Phase 4: FREEZE for tier3+ (5.5s) ---
-      if (targetRarity >= 2) {
+      // --- COLOR UPGRADES (2-3.5s): Each upgrade = flash + sound ---
+      const upgradeStart = 2000;
+      for (let i = 0; i <= targetStage; i++) {
         t(() => {
-          setPhase("freeze");
+          setColorStage(i);
+          setEffectColor(STAGE_COLORS[i].primary);
+          setEffectSecondary(STAGE_COLORS[i].secondary);
+          if (i > 0) {
+            playColorUpgrade();
+            flash(STAGE_COLORS[i].primary, 120);
+            setEffectMode("intensify");
+          }
+          setShowText(i === 0 ? "" : i === 1 ? "!" : i === 2 ? "!!" : "!!!");
+        }, upgradeStart + i * 400);
+      }
+
+      // --- PEAK (3.5-4.5s): Everything maxed ---
+      t(() => {
+        setEffectMode("climax");
+        setEffectIntensity(1);
+        setShowText("");
+        playKyuiin(0.8); // Short final kyuiin
+      }, 3500);
+
+      // --- IMPACT (4.5s): Screen flash + heavy sound ---
+      t(() => {
+        playDiceImpact();
+        flash("#ffffff", 200);
+        setEffectMode("idle");
+      }, 4300);
+
+      // --- BLACKOUT for tier2+ (4.8-7s) ---
+      if (targetStage >= 1) {
+        t(() => {
+          setPhase("blackout");
+          setEffectMode("blackout");
+          setEffectIntensity(1);
           playFreeze();
-        }, 5500);
+          setBgStyle("bg-black");
+        }, 4800);
 
-        // Heartbeat in darkness
-        t(() => playHeartbeat(), 6200);
-        t(() => playHeartbeat(), 7000);
+        // Heartbeats in darkness
+        t(() => playHeartbeat(), 5400);
+        t(() => playHeartbeat(), 6100);
 
-        // Revival / emerge from darkness
+        // Longer blackout for higher rarity
+        const blackoutEnd = targetStage >= 3 ? 7200 : targetStage >= 2 ? 6800 : 6300;
+
+        // --- REVIVAL + CARD REVEAL ---
         t(() => {
           playRevival();
-          setFlashWhite(true);
-          t(() => setFlashWhite(false), 200);
-          setPhase("card-reveal");
-          setShowParticles(true);
-          setCardRevealed(true);
-          playRevealFanfare(firstCard.rarity);
-        }, 7800);
+          flash(rc.primary, 250);
+          setEffectColor(rc.primary);
+          setEffectSecondary(rc.secondary);
+          setEffectMode("explode");
+          setEffectIntensity(1);
+          setBgStyle("bg-black");
+
+          setTimeout(() => {
+            setPhase("reveal");
+            setCardRevealed(true);
+            playRevealFanfare(rarity);
+            setEffectMode("shimmer");
+            setEffectIntensity(0.8);
+          }, 500);
+        }, blackoutEnd);
       } else {
-        // No freeze for tier1 — go straight to reveal
+        // tier1: quick transition to reveal
         t(() => {
-          setPhase("card-reveal");
-          setShowParticles(true);
-          setCardRevealed(true);
-          playRevealFanfare(firstCard.rarity);
-        }, 5800);
+          setEffectColor(rc.primary);
+          setEffectSecondary(rc.secondary);
+          setEffectMode("explode");
+          flash("#ffffff", 150);
+          setTimeout(() => {
+            setPhase("reveal");
+            setCardRevealed(true);
+            playRevealFanfare(rarity);
+            setEffectMode("shimmer");
+            setEffectIntensity(0.6);
+          }, 400);
+        }, 5000);
       }
     })();
 
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, [pullFromApi]);
+    return () => timers.forEach(clearTimeout);
+  }, [pullFromApi, flash]);
 
-  // Play sound on subsequent card reveals
+  // Sound on subsequent card reveals
   useEffect(() => {
-    if (phase === "card-reveal" && currentCardIndex > 0 && pulledCards[currentCardIndex]) {
+    if (phase === "reveal" && currentCardIndex > 0 && pulledCards[currentCardIndex]) {
       setCardRevealed(false);
-      setShowParticles(false);
+      const card = pulledCards[currentCardIndex];
+      const rc = RARITY_COLORS[card.rarity];
+      setEffectColor(rc.primary);
+      setEffectSecondary(rc.secondary);
+      setEffectMode("explode");
+      flash(rc.primary, 150);
       const timer = setTimeout(() => {
-        playRevealFanfare(pulledCards[currentCardIndex].rarity);
-        setShowParticles(true);
         setCardRevealed(true);
-      }, 300);
+        playRevealFanfare(card.rarity);
+        setEffectMode("shimmer");
+      }, 400);
       return () => clearTimeout(timer);
     }
-  }, [currentCardIndex, phase, pulledCards]);
+  }, [currentCardIndex, phase, pulledCards, flash]);
 
   const currentCard = pulledCards[currentCardIndex];
   const totalValue = pulledCards.reduce((sum, c) => sum + c.marketValue, 0);
   const sellBackValue = Math.floor(totalValue * 0.8);
   const costInCoins = pack.price * quantity;
-  const currentConfig = currentCard ? RARITY_CONFIG[currentCard.rarity] : RARITY_CONFIG.tier1;
-
-  // Dice color based on stage
-  const DICE_STAGE_COLORS = ["#ffffff", "#ef4444", "#1a1a2e", "#f59e0b"];
-  const DICE_STAGE_GLOW = ["rgba(255,255,255,0.2)", "rgba(239,68,68,0.5)", "rgba(100,50,200,0.5)", "rgba(245,158,11,0.7)"];
-  const DICE_STAGE_TEXT = ["#333", "#fff", "#c084fc", "#000"];
+  const rc = currentCard ? RARITY_COLORS[currentCard.rarity] : RARITY_COLORS.tier1;
 
   const handleKeepAll = () => { onKeepAll(pulledCards); setSettled(true); };
   const handleSellBack = () => { onSellBack(sellBackValue); setSettled(true); };
@@ -292,300 +248,213 @@ export function PackOpeningModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
-      style={{
-        transform: screenShake ? `translate(${Math.random() * 8 - 4}px, ${Math.random() * 8 - 4}px)` : "none",
-      }}
+      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden ${bgStyle}`}
       onClick={(e) => e.target === e.currentTarget && phase === "result" && handleClose()}
     >
-      {/* Background */}
-      <div className={`absolute inset-0 transition-all duration-700 ${
-        phase === "freeze" ? "bg-black" :
-        phase === "card-reveal" || phase === "result" ? `bg-gradient-to-b ${currentConfig.bgGradient}` :
-        "bg-gradient-to-b from-gray-950 via-black to-gray-950"
-      }`} />
-      {phase !== "freeze" && <div className="absolute inset-0 bg-black/40" />}
+      {/* Canvas effects layer */}
+      <EffectsCanvas
+        mode={effectMode}
+        color={effectColor}
+        secondaryColor={effectSecondary}
+        intensity={effectIntensity}
+      />
 
-      {/* White flash overlay */}
+      {/* Screen flash overlay */}
       <AnimatePresence>
-        {flashWhite && (
+        {screenFlash && (
           <motion.div
             key="flash"
             initial={{ opacity: 0.9 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-white z-40 pointer-events-none"
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 z-30 pointer-events-none"
+            style={{ backgroundColor: screenFlash }}
           />
         )}
       </AnimatePresence>
 
-      {/* Close button (only in reveal/result) */}
-      {(phase === "card-reveal" || phase === "result") && (
-        <button onClick={handleClose} className="absolute top-4 right-4 text-white/40 hover:text-white z-20">
+      {/* Close button */}
+      {(phase === "reveal" || phase === "result") && (
+        <button onClick={handleClose} className="absolute top-4 right-4 text-white/30 hover:text-white z-30">
           <X className="h-6 w-6" />
         </button>
       )}
 
       <AnimatePresence mode="wait">
-        {/* ============ DICE PHASES ============ */}
-        {(phase === "dice-rise" || phase === "dice-color" || phase === "dice-land") && !error && (
+        {/* ============ BUILDUP + PEAK ============ */}
+        {(phase === "buildup" || phase === "peak") && !error && (
           <motion.div
-            key="dice"
-            className="relative flex flex-col items-center z-10"
-            exit={{ opacity: 0, scale: 1.5 }}
-            transition={{ duration: 0.3 }}
+            key="buildup"
+            className="relative z-20 flex flex-col items-center"
+            exit={{ opacity: 0, scale: 3 }}
+            transition={{ duration: 0.2 }}
           >
-            {/* Vertical light beam behind dice */}
+            {/* Central energy orb */}
             <motion.div
-              className="absolute w-1 rounded-full"
-              style={{
-                background: `linear-gradient(to top, transparent, ${DICE_STAGE_GLOW[diceColorStage]}, transparent)`,
-                height: "400px",
-                top: "-150px",
-              }}
-              animate={{
-                opacity: [0.3, 0.8, 0.3],
-                width: phase === "dice-land" ? "80px" : "2px",
-              }}
-              transition={{ opacity: { duration: 0.8, repeat: Infinity }, width: { duration: 0.2 } }}
-            />
-
-            {/* The 3 dice */}
-            <div className="flex gap-4 relative">
-              {[0, 1, 2].map((idx) => (
-                <motion.div
-                  key={idx}
-                  className="relative"
-                  animate={
-                    phase === "dice-rise"
-                      ? { y: [20, -30, 20], rotate: [0, 15, -15, 0] }
-                      : phase === "dice-land"
-                      ? { y: 0, rotate: 0, scale: [1.3, 1] }
-                      : { y: [-10, 10, -10], rotate: [-5, 5, -5] }
-                  }
-                  transition={
-                    phase === "dice-land"
-                      ? { duration: 0.3 }
-                      : { duration: 0.6 + idx * 0.1, repeat: Infinity, ease: "easeInOut" }
-                  }
-                >
-                  <div
-                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl font-bold transition-all duration-300 relative"
-                    style={{
-                      backgroundColor: DICE_STAGE_COLORS[diceColorStage],
-                      color: DICE_STAGE_TEXT[diceColorStage],
-                      boxShadow: `0 0 30px ${DICE_STAGE_GLOW[diceColorStage]}, 0 0 60px ${DICE_STAGE_GLOW[diceColorStage]}`,
-                      border: diceColorStage === 3 ? "2px solid #fbbf24" : "1px solid rgba(255,255,255,0.2)",
-                    }}
-                  >
-                    {diceSpinning ? (
-                      <span className="animate-pulse">{DICE_FACES[diceValues[idx]]}</span>
-                    ) : (
-                      <motion.span
-                        initial={{ scale: 2, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: idx * 0.1, type: "spring" }}
-                      >
-                        {DICE_FACES[diceValues[idx]]}
-                      </motion.span>
-                    )}
-
-                    {/* Glow pulse on gold dice */}
-                    {diceColorStage === 3 && (
-                      <motion.div
-                        className="absolute inset-0 rounded-2xl"
-                        style={{ boxShadow: "0 0 40px #f59e0b, 0 0 80px #f59e0b" }}
-                        animate={{ opacity: [0.5, 1, 0.5] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
-                      />
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Golden plate (visible on land) */}
-            {phase === "dice-land" && (
-              <motion.div
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={{ scaleX: 1, opacity: 1 }}
-                className="mt-4 w-72 h-3 rounded-full"
+              className="relative"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 0.5 + (1 - effectIntensity) * 0.5, repeat: Infinity }}
+            >
+              <div
+                className="w-28 h-28 rounded-full transition-all duration-300"
                 style={{
-                  background: "linear-gradient(90deg, transparent, rgba(251,191,36,0.3), rgba(251,191,36,0.5), rgba(251,191,36,0.3), transparent)",
+                  background: `radial-gradient(circle, ${effectColor}, ${effectColor}88 40%, transparent 70%)`,
+                  boxShadow: `0 0 ${60 + effectIntensity * 60}px ${effectColor}, 0 0 ${120 + effectIntensity * 80}px ${effectColor}66`,
                 }}
               />
-            )}
+              {/* Inner core */}
+              <div
+                className="absolute inset-4 rounded-full"
+                style={{
+                  background: `radial-gradient(circle, white, ${effectColor} 60%, transparent)`,
+                  opacity: 0.6 + effectIntensity * 0.4,
+                }}
+              />
+            </motion.div>
 
-            {/* Pack name */}
-            <motion.p
-              className="mt-8 text-white/50 text-sm font-medium"
-              animate={{ opacity: [0.3, 0.8, 0.3] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              {pack.name} × {quantity}
-            </motion.p>
-
-            {/* Dice result label on land */}
-            {phase === "dice-land" && pulledCards[0] && (
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="mt-4"
-              >
-                <span
-                  className="text-sm font-black tracking-[0.2em] px-4 py-1.5 rounded-full"
+            {/* Color upgrade text */}
+            <AnimatePresence mode="wait">
+              {showText && (
+                <motion.div
+                  key={showText}
+                  initial={{ scale: 3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.5, opacity: 0 }}
+                  transition={{ type: "spring", damping: 10 }}
+                  className="absolute text-6xl font-black"
                   style={{
-                    color: currentConfig.color,
-                    backgroundColor: `${currentConfig.color}20`,
-                    border: `1px solid ${currentConfig.color}40`,
-                    textShadow: `0 0 15px ${currentConfig.color}`,
+                    color: effectColor,
+                    textShadow: `0 0 40px ${effectColor}, 0 0 80px ${effectColor}`,
                   }}
                 >
-                  {diceValues[0] === diceValues[1] && diceValues[1] === diceValues[2]
-                    ? diceValues[0] === 0 ? "ピンゾロ！！！" : "ゾロ目！！"
-                    : diceValues.includes(3) && diceValues.includes(4) && diceValues.includes(5)
-                    ? "ジゴロ！"
-                    : "..."
-                  }
-                </span>
-              </motion.div>
-            )}
+                  {showText}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Pack info */}
+            <motion.p
+              className="mt-10 text-white/40 text-sm tracking-wide"
+              animate={{ opacity: [0.3, 0.7, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+            >
+              {pack.name}
+            </motion.p>
           </motion.div>
         )}
 
-        {/* ============ FREEZE (BLACKOUT) ============ */}
-        {phase === "freeze" && (
+        {/* ============ BLACKOUT ============ */}
+        {phase === "blackout" && (
           <motion.div
-            key="freeze"
+            key="blackout"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="z-10 flex flex-col items-center"
+            className="z-20 flex items-center justify-center"
           >
             <motion.div
-              animate={{ opacity: [0.1, 0.4, 0.1] }}
+              animate={{ opacity: [0, 0.3, 0], scale: [0.95, 1.05, 0.95] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-white/20 text-sm tracking-[0.3em] font-bold"
+              className="text-white/10 text-2xl font-bold tracking-[0.5em]"
             >
-              . . .
+              ・・・
             </motion.div>
           </motion.div>
         )}
 
         {/* ============ CARD REVEAL ============ */}
-        {phase === "card-reveal" && currentCard && (
+        {phase === "reveal" && currentCard && (
           <motion.div
             key={`reveal-${currentCardIndex}`}
-            initial={{ scale: 0.1, opacity: 0 }}
+            initial={{ scale: 0.05, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", damping: 10, stiffness: 150 }}
-            className="relative flex flex-col items-center z-10 w-full max-w-sm px-4"
+            transition={{ type: "spring", damping: 8, stiffness: 100 }}
+            className="relative flex flex-col items-center z-20 w-full max-w-sm px-4"
           >
-            {/* Explosion particles */}
-            {showParticles && (
-              <Particles count={50} color={currentConfig.particleColor} spread={300} />
-            )}
-
-            {/* Massive background glow */}
-            <motion.div
-              className="absolute pointer-events-none"
-              style={{
-                width: "600px", height: "600px",
-                background: `radial-gradient(circle, ${currentConfig.glowColor}, transparent 70%)`,
-                top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-              }}
-              initial={{ scale: 0 }}
-              animate={{ scale: [0, 1.5, 1.2] }}
-              transition={{ duration: 0.8 }}
-            />
-
             {/* Rarity label */}
             <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: cardRevealed ? 1 : 0 }}
+              initial={{ y: -40, opacity: 0, scale: 2 }}
+              animate={{ y: 0, opacity: cardRevealed ? 1 : 0, scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="mb-2 z-10"
+              className="mb-3"
             >
               <span
-                className="text-sm font-black tracking-[0.2em] px-5 py-1.5 rounded-full"
+                className="text-sm font-black tracking-[0.25em] px-6 py-2 rounded-full inline-block"
                 style={{
-                  color: currentConfig.color,
-                  backgroundColor: `${currentConfig.color}15`,
-                  border: `1px solid ${currentConfig.color}50`,
-                  textShadow: `0 0 25px ${currentConfig.color}`,
+                  color: rc.primary,
+                  backgroundColor: `${rc.primary}18`,
+                  border: `2px solid ${rc.primary}60`,
+                  textShadow: `0 0 30px ${rc.primary}`,
+                  boxShadow: `0 0 20px ${rc.primary}30`,
                 }}
               >
-                {currentConfig.label}
+                {rc.label}
               </span>
             </motion.div>
 
-            {/* Card counter */}
-            <p className="text-xs text-white/30 mb-3 z-10">
-              {currentCardIndex + 1} / {pulledCards.length}
-            </p>
+            <p className="text-xs text-white/25 mb-2">{currentCardIndex + 1} / {pulledCards.length}</p>
 
-            {/* Card with dramatic entrance */}
+            {/* The card */}
             <motion.div
-              className="relative z-10"
-              initial={{ rotateY: 180, y: 100 }}
-              animate={{
-                rotateY: cardRevealed ? 0 : 180,
-                y: cardRevealed ? 0 : 100,
-              }}
-              transition={{ type: "spring", damping: 12, stiffness: 120 }}
-              style={{ perspective: 1000 }}
+              className="relative"
+              initial={{ rotateY: 90 }}
+              animate={{ rotateY: cardRevealed ? 0 : 90 }}
+              transition={{ type: "spring", damping: 12, stiffness: 100, delay: 0.1 }}
+              style={{ perspective: 1200 }}
             >
               <div
                 className="rounded-2xl p-[3px]"
                 style={{
-                  background: `linear-gradient(135deg, ${currentConfig.color}, ${currentConfig.color}33, ${currentConfig.color})`,
-                  boxShadow: `0 0 40px ${currentConfig.glowColor}, 0 0 80px ${currentConfig.glowColor}`,
+                  background: `linear-gradient(135deg, ${rc.primary}, ${rc.secondary}, ${rc.primary})`,
+                  boxShadow: `0 0 50px ${rc.primary}80, 0 0 100px ${rc.primary}40`,
                 }}
               >
-                <div className="rounded-2xl bg-black/80 p-2">
-                  <div className="h-80 w-56 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                <div className="rounded-2xl bg-black/85 p-2.5">
+                  <div className="h-80 w-56 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-b from-gray-900/80 to-black">
                     <CardImage src={currentCard.imageUrl} alt={currentCard.name} rarity={currentCard.rarity} size="lg" />
                   </div>
                 </div>
               </div>
-
-              {/* Continuous sparkles for tier3+ */}
               {(currentCard.rarity === "tier4" || currentCard.rarity === "tier3") && (
-                <Sparkles color={currentConfig.particleColor} />
+                <Sparkles color={rc.secondary} />
               )}
             </motion.div>
 
-            {/* Card info */}
+            {/* Card name + value */}
             <motion.div
-              className="mt-4 text-center z-10"
-              initial={{ y: 20, opacity: 0 }}
+              className="mt-4 text-center"
+              initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: cardRevealed ? 1 : 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.35 }}
             >
               <h3 className="text-xl font-bold text-white">{currentCard.name}</h3>
               <div className="flex items-center justify-center gap-1.5 mt-2">
                 <Coins className="h-5 w-5 text-amber-400" />
-                <span className="text-2xl font-black text-amber-400">
+                <motion.span
+                  className="text-3xl font-black text-amber-400"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: cardRevealed ? 1 : 0 }}
+                  transition={{ delay: 0.5, type: "spring" }}
+                >
                   {formatNumber(currentCard.marketValue)}
-                </span>
+                </motion.span>
               </div>
             </motion.div>
 
-            {/* Next / Results button */}
+            {/* Next button */}
             <motion.div
-              className="mt-6 z-10 w-full"
+              className="mt-6 w-full"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: cardRevealed ? 1 : 0 }}
-              transition={{ delay: 0.5 }}
+              transition={{ delay: 0.6 }}
             >
               {currentCardIndex < pulledCards.length - 1 ? (
                 <Button size="lg" className="w-full" onClick={() => setCurrentCardIndex((i) => i + 1)}>
                   Next Card ({currentCardIndex + 2}/{pulledCards.length})
                 </Button>
               ) : (
-                <Button size="lg" className="w-full" onClick={() => setPhase("result")}>
+                <Button size="lg" className="w-full" onClick={() => { setPhase("result"); setEffectMode("idle"); }}>
                   View Results
                 </Button>
               )}
@@ -599,21 +468,14 @@ export function PackOpeningModal({
             key="result"
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="mx-4 w-full max-w-md z-10"
+            className="mx-4 w-full max-w-md z-20"
           >
-            <motion.h2
-              className="text-2xl font-black text-center mb-4"
-              style={{ color: currentConfig.color, textShadow: `0 0 30px ${currentConfig.glowColor}` }}
-              initial={{ scale: 0.5 }}
-              animate={{ scale: 1 }}
-            >
-              RESULTS
-            </motion.h2>
+            <h2 className="text-2xl font-black text-center mb-4 text-white">RESULTS</h2>
 
-            <div className="rounded-2xl bg-black/70 border border-white/10 backdrop-blur-lg p-4">
+            <div className="rounded-2xl bg-black/80 border border-white/10 backdrop-blur-lg p-4">
               <div className="space-y-2 max-h-56 overflow-y-auto mb-4 pr-1">
                 {pulledCards.map((card, i) => {
-                  const cfg = RARITY_CONFIG[card.rarity];
+                  const c = RARITY_COLORS[card.rarity];
                   return (
                     <motion.div
                       key={i}
@@ -621,7 +483,7 @@ export function PackOpeningModal({
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: i * 0.05 }}
                       className="flex items-center justify-between rounded-xl p-2.5"
-                      style={{ backgroundColor: `${cfg.color}08`, border: `1px solid ${cfg.color}20` }}
+                      style={{ backgroundColor: `${c.primary}0a`, border: `1px solid ${c.primary}25` }}
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-12 w-9 rounded-lg overflow-hidden flex-shrink-0">
@@ -629,9 +491,7 @@ export function PackOpeningModal({
                         </div>
                         <div>
                           <p className="text-sm font-medium text-white">{card.name}</p>
-                          <p className="text-[10px] font-bold tracking-wider" style={{ color: cfg.color }}>
-                            {cfg.label}
-                          </p>
+                          <p className="text-[10px] font-bold tracking-wider" style={{ color: c.primary }}>{c.label}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -665,9 +525,7 @@ export function PackOpeningModal({
                 </div>
               ) : (
                 <div className="mt-4 text-center space-y-3">
-                  <motion.p className="text-sm font-medium text-green-400" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                    Done!
-                  </motion.p>
+                  <p className="text-sm font-medium text-green-400">Done!</p>
                   <Button variant="secondary" className="w-full" onClick={onClose}>Close</Button>
                 </div>
               )}
@@ -676,13 +534,9 @@ export function PackOpeningModal({
         )}
       </AnimatePresence>
 
-      {/* Error overlay */}
+      {/* Error */}
       {error && (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="absolute inset-0 flex items-center justify-center z-50"
-        >
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="absolute inset-0 flex items-center justify-center z-50">
           <div className="mx-4 w-full max-w-md rounded-2xl bg-card border border-border p-6 text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-red-400 mx-auto" />
             <p className="text-sm text-red-400">{error}</p>
