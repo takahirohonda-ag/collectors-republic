@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 export async function GET() {
   const hasDbUrl = !!process.env.DATABASE_URL;
@@ -11,7 +12,8 @@ export async function GET() {
 
   try {
     prismaStatus = "PrismaClient imported";
-    const prisma = new (PrismaClient as any)({});
+    const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+    const prisma = new (PrismaClient as any)({ adapter });
     prismaStatus = "initialized";
     const count = await prisma.user.count();
     queryResult = `success: ${count} users`;

@@ -1,7 +1,9 @@
 // Prisma client singleton with graceful fallback when DB is not connected
 import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-let prismaClient: InstanceType<typeof PrismaClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let prismaClient: any | null = null;
 let initAttempted = false;
 
 export function getPrisma() {
@@ -10,7 +12,8 @@ export function getPrisma() {
   if (!initAttempted) {
     initAttempted = true;
     try {
-      prismaClient = new (PrismaClient as any)({});
+      const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+      prismaClient = new (PrismaClient as any)({ adapter });
     } catch (e) {
       console.error("Prisma client init failed:", e);
       prismaClient = null;
