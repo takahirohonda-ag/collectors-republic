@@ -6,12 +6,10 @@ import { Card, GachaPack, CardRarity } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { CardImage } from "@/components/ui/card-image";
-import { EffectsCanvas, EffectMode } from "./effects-canvas";
 import { Sparkles } from "./particles";
 import { X, Coins, AlertCircle } from "lucide-react";
 import {
   playKyuiin,
-  playColorUpgrade,
   playDiceImpact,
   playFreeze,
   playRevival,
@@ -27,7 +25,14 @@ interface PackOpeningModalProps {
   onSellBack: (coins: number) => void;
 }
 
-type Phase = "buildup" | "peak" | "blackout" | "reveal" | "result";
+type Phase = "video" | "blackout" | "reveal" | "result";
+
+const VIDEO_MAP: Record<CardRarity, string> = {
+  tier1: "/videos/gacha_common.mp4",
+  tier2: "/videos/gacha_rare.mp4",
+  tier3: "/videos/gacha_ultra.mp4",
+  tier4: "/videos/gacha_legendary.mp4",
+};
 
 const RARITY_COLORS: Record<CardRarity, { primary: string; secondary: string; label: string }> = {
   tier1: { primary: "#10b981", secondary: "#34d399", label: "COMMON" },
@@ -38,38 +43,24 @@ const RARITY_COLORS: Record<CardRarity, { primary: string; secondary: string; la
 
 function getRarityIndex(r: CardRarity) { return { tier1: 0, tier2: 1, tier3: 2, tier4: 3 }[r]; }
 
-// Color stages for buildup: green → blue → purple → gold
-const STAGE_COLORS = [
-  { primary: "#10b981", secondary: "#34d399" },
-  { primary: "#6366f1", secondary: "#818cf8" },
-  { primary: "#d946ef", secondary: "#f0abfc" },
-  { primary: "#f59e0b", secondary: "#fcd34d" },
-];
-
 export function PackOpeningModal({
   pack, quantity, onClose, onKeepAll, onSellBack,
 }: PackOpeningModalProps) {
-  const [phase, setPhase] = useState<Phase>("buildup");
+  const [phase, setPhase] = useState<Phase>("video");
   const [pulledCards, setPulledCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [settled, setSettled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [effectMode, setEffectMode] = useState<EffectMode>("charge");
-  const [effectColor, setEffectColor] = useState("#10b981");
-  const [effectSecondary, setEffectSecondary] = useState("#34d399");
-  const [effectIntensity, setEffectIntensity] = useState(0.5);
-  const [colorStage, setColorStage] = useState(0);
-  const [bgStyle, setBgStyle] = useState("bg-black");
-  const [screenFlash, setScreenFlash] = useState<string | null>(null);
+  const [videoSrc, setVideoSrc] = useState(VIDEO_MAP.tier1);
   const [cardRevealed, setCardRevealed] = useState(false);
-  const [showText, setShowText] = useState("");
+  const [flashColor, setFlashColor] = useState<string | null>(null);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
   const initRef = useRef(false);
 
-  const flash = useCallback((color: string, duration = 150) => {
-    setScreenFlash(color);
-    setTimeout(() => setScreenFlash(null), duration);
+  const flash = useCallback((color: string, ms = 200) => {
+    setFlashColor(color);
+    setTimeout(() => setFlashColor(null), ms);
   }, []);
 
   const pullFromApi = useCallback(async () => {
@@ -93,7 +84,7 @@ export function PackOpeningModal({
     }
   }, [pack.id, quantity]);
 
-  // === MAIN CINEMATIC SEQUENCE ===
+  // === MAIN SEQUENCE ===
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -102,109 +93,65 @@ export function PackOpeningModal({
     const t = (fn: () => void, ms: number) => { timers.push(setTimeout(fn, ms)); };
 
     (async () => {
+      // Start pulling + play sound immediately
       const pullPromise = pullFromApi();
+      playKyuiin(4);
 
-      // --- BUILDUP (0-4s): Energy charging, キュイーン ---
-      playKyuiin(3.5);
-      setEffectMode("charge");
-      setEffectIntensity(0.3);
-      setBgStyle("bg-black");
-
-      // Gradually increase intensity
-      t(() => setEffectIntensity(0.5), 500);
-      t(() => setEffectIntensity(0.7), 1000);
-      t(() => setEffectIntensity(0.9), 1500);
-
-      // Get cards result
       const cards = await pullPromise;
       if (!cards || cards.length === 0) return;
       setPulledCards(cards);
 
       const rarity = cards[0].rarity;
-      const targetStage = getRarityIndex(rarity);
+      const rarityIdx = getRarityIndex(rarity);
       const rc = RARITY_COLORS[rarity];
 
-      // --- COLOR UPGRADES (2-3.5s): Each upgrade = flash + sound ---
-      const upgradeStart = 2000;
-      for (let i = 0; i <= targetStage; i++) {
-        t(() => {
-          setColorStage(i);
-          setEffectColor(STAGE_COLORS[i].primary);
-          setEffectSecondary(STAGE_COLORS[i].secondary);
-          if (i > 0) {
-            playColorUpgrade();
-            flash(STAGE_COLORS[i].primary, 120);
-            setEffectMode("intensify");
-          }
-          setShowText(i === 0 ? "" : i === 1 ? "!" : i === 2 ? "!!" : "!!!");
-        }, upgradeStart + i * 400);
-      }
+      // Set video based on rarity
+      setVideoSrc(VIDEO_MAP[rarity]);
 
-      // --- PEAK (3.5-4.5s): Everything maxed ---
+      // Play the video
       t(() => {
-        setEffectMode("climax");
-        setEffectIntensity(1);
-        setShowText("");
-        playKyuiin(0.8); // Short final kyuiin
-      }, 3500);
+        if (videoRef.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      }, 100);
 
-      // --- IMPACT (4.5s): Screen flash + heavy sound ---
-      t(() => {
-        playDiceImpact();
-        flash("#ffffff", 200);
-        setEffectMode("idle");
-      }, 4300);
+      // Impact sound at video midpoint
+      t(() => playDiceImpact(), 2500);
 
-      // --- BLACKOUT for tier2+ (4.8-7s) ---
-      if (targetStage >= 1) {
+      // Video ends → blackout for tier2+
+      const videoEnd = 4800;
+
+      if (rarityIdx >= 1) {
+        // Blackout
         t(() => {
           setPhase("blackout");
-          setEffectMode("blackout");
-          setEffectIntensity(1);
           playFreeze();
-          setBgStyle("bg-black");
-        }, 4800);
+        }, videoEnd);
 
-        // Heartbeats in darkness
-        t(() => playHeartbeat(), 5400);
-        t(() => playHeartbeat(), 6100);
+        // Heartbeats
+        t(() => playHeartbeat(), videoEnd + 600);
+        t(() => playHeartbeat(), videoEnd + 1300);
 
-        // Longer blackout for higher rarity
-        const blackoutEnd = targetStage >= 3 ? 7200 : targetStage >= 2 ? 6800 : 6300;
+        const blackoutDuration = rarityIdx >= 3 ? 2500 : rarityIdx >= 2 ? 2000 : 1500;
 
-        // --- REVIVAL + CARD REVEAL ---
+        // Card reveal
         t(() => {
           playRevival();
-          flash(rc.primary, 250);
-          setEffectColor(rc.primary);
-          setEffectSecondary(rc.secondary);
-          setEffectMode("explode");
-          setEffectIntensity(1);
-          setBgStyle("bg-black");
-
-          setTimeout(() => {
+          flash(rc.primary, 300);
+          t(() => {
             setPhase("reveal");
             setCardRevealed(true);
             playRevealFanfare(rarity);
-            setEffectMode("shimmer");
-            setEffectIntensity(0.8);
-          }, 500);
-        }, blackoutEnd);
-      } else {
-        // tier1: quick transition to reveal
-        t(() => {
-          setEffectColor(rc.primary);
-          setEffectSecondary(rc.secondary);
-          setEffectMode("explode");
-          flash("#ffffff", 150);
-          setTimeout(() => {
-            setPhase("reveal");
-            setCardRevealed(true);
-            playRevealFanfare(rarity);
-            setEffectMode("shimmer");
-            setEffectIntensity(0.6);
           }, 400);
-        }, 5000);
+        }, videoEnd + blackoutDuration);
+      } else {
+        // Tier1: straight to reveal
+        t(() => {
+          flash("#ffffff", 200);
+          setPhase("reveal");
+          setCardRevealed(true);
+          playRevealFanfare(rarity);
+        }, videoEnd);
       }
     })();
 
@@ -215,17 +162,12 @@ export function PackOpeningModal({
   useEffect(() => {
     if (phase === "reveal" && currentCardIndex > 0 && pulledCards[currentCardIndex]) {
       setCardRevealed(false);
-      const card = pulledCards[currentCardIndex];
-      const rc = RARITY_COLORS[card.rarity];
-      setEffectColor(rc.primary);
-      setEffectSecondary(rc.secondary);
-      setEffectMode("explode");
+      const rc = RARITY_COLORS[pulledCards[currentCardIndex].rarity];
       flash(rc.primary, 150);
       const timer = setTimeout(() => {
         setCardRevealed(true);
-        playRevealFanfare(card.rarity);
-        setEffectMode("shimmer");
-      }, 400);
+        playRevealFanfare(pulledCards[currentCardIndex].rarity);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [currentCardIndex, phase, pulledCards, flash]);
@@ -248,99 +190,58 @@ export function PackOpeningModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden ${bgStyle}`}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden"
       onClick={(e) => e.target === e.currentTarget && phase === "result" && handleClose()}
     >
-      {/* Canvas effects layer */}
-      <EffectsCanvas
-        mode={effectMode}
-        color={effectColor}
-        secondaryColor={effectSecondary}
-        intensity={effectIntensity}
-      />
-
-      {/* Screen flash overlay */}
+      {/* Flash overlay */}
       <AnimatePresence>
-        {screenFlash && (
+        {flashColor && (
           <motion.div
             key="flash"
             initial={{ opacity: 0.9 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="absolute inset-0 z-30 pointer-events-none"
-            style={{ backgroundColor: screenFlash }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 z-40 pointer-events-none"
+            style={{ backgroundColor: flashColor }}
           />
         )}
       </AnimatePresence>
 
       {/* Close button */}
       {(phase === "reveal" || phase === "result") && (
-        <button onClick={handleClose} className="absolute top-4 right-4 text-white/30 hover:text-white z-30">
+        <button onClick={handleClose} className="absolute top-4 right-4 text-white/40 hover:text-white z-30">
           <X className="h-6 w-6" />
         </button>
       )}
 
       <AnimatePresence mode="wait">
-        {/* ============ BUILDUP + PEAK ============ */}
-        {(phase === "buildup" || phase === "peak") && !error && (
+        {/* ============ VIDEO PHASE ============ */}
+        {phase === "video" && !error && (
           <motion.div
-            key="buildup"
-            className="relative z-20 flex flex-col items-center"
-            exit={{ opacity: 0, scale: 3 }}
-            transition={{ duration: 0.2 }}
+            key="video"
+            className="absolute inset-0 z-10"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
           >
-            {/* Central energy orb */}
+            <video
+              ref={videoRef}
+              src={videoSrc}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+              preload="auto"
+            />
+            {/* Pack name overlay */}
             <motion.div
-              className="relative"
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ duration: 0.5 + (1 - effectIntensity) * 0.5, repeat: Infinity }}
+              className="absolute bottom-20 left-0 right-0 text-center z-20"
+              animate={{ opacity: [0.3, 0.8, 0.3] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
             >
-              <div
-                className="w-28 h-28 rounded-full transition-all duration-300"
-                style={{
-                  background: `radial-gradient(circle, ${effectColor}, ${effectColor}88 40%, transparent 70%)`,
-                  boxShadow: `0 0 ${60 + effectIntensity * 60}px ${effectColor}, 0 0 ${120 + effectIntensity * 80}px ${effectColor}66`,
-                }}
-              />
-              {/* Inner core */}
-              <div
-                className="absolute inset-4 rounded-full"
-                style={{
-                  background: `radial-gradient(circle, white, ${effectColor} 60%, transparent)`,
-                  opacity: 0.6 + effectIntensity * 0.4,
-                }}
-              />
+              <p className="text-white/50 text-sm font-medium tracking-wide">
+                {pack.name} × {quantity}
+              </p>
             </motion.div>
-
-            {/* Color upgrade text */}
-            <AnimatePresence mode="wait">
-              {showText && (
-                <motion.div
-                  key={showText}
-                  initial={{ scale: 3, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.5, opacity: 0 }}
-                  transition={{ type: "spring", damping: 10 }}
-                  className="absolute text-6xl font-black"
-                  style={{
-                    color: effectColor,
-                    textShadow: `0 0 40px ${effectColor}, 0 0 80px ${effectColor}`,
-                  }}
-                >
-                  {showText}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Pack info */}
-            <motion.p
-              className="mt-10 text-white/40 text-sm tracking-wide"
-              animate={{ opacity: [0.3, 0.7, 0.3] }}
-              transition={{ duration: 1.2, repeat: Infinity }}
-            >
-              {pack.name}
-            </motion.p>
           </motion.div>
         )}
 
@@ -351,12 +252,12 @@ export function PackOpeningModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="z-20 flex items-center justify-center"
+            className="absolute inset-0 bg-black z-20 flex items-center justify-center"
           >
             <motion.div
               animate={{ opacity: [0, 0.3, 0], scale: [0.95, 1.05, 0.95] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-white/10 text-2xl font-bold tracking-[0.5em]"
+              className="text-white/10 text-3xl font-bold tracking-[0.5em]"
             >
               ・・・
             </motion.div>
@@ -372,12 +273,20 @@ export function PackOpeningModal({
             transition={{ type: "spring", damping: 8, stiffness: 100 }}
             className="relative flex flex-col items-center z-20 w-full max-w-sm px-4"
           >
+            {/* Background glow */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `radial-gradient(ellipse at center, ${rc.primary}30 0%, transparent 70%)`,
+              }}
+            />
+
             {/* Rarity label */}
             <motion.div
               initial={{ y: -40, opacity: 0, scale: 2 }}
               animate={{ y: 0, opacity: cardRevealed ? 1 : 0, scale: 1 }}
               transition={{ delay: 0.2, type: "spring" }}
-              className="mb-3"
+              className="mb-3 z-10"
             >
               <span
                 className="text-sm font-black tracking-[0.25em] px-6 py-2 rounded-full inline-block"
@@ -393,11 +302,11 @@ export function PackOpeningModal({
               </span>
             </motion.div>
 
-            <p className="text-xs text-white/25 mb-2">{currentCardIndex + 1} / {pulledCards.length}</p>
+            <p className="text-xs text-white/25 mb-2 z-10">{currentCardIndex + 1} / {pulledCards.length}</p>
 
-            {/* The card */}
+            {/* Card */}
             <motion.div
-              className="relative"
+              className="relative z-10"
               initial={{ rotateY: 90 }}
               animate={{ rotateY: cardRevealed ? 0 : 90 }}
               transition={{ type: "spring", damping: 12, stiffness: 100, delay: 0.1 }}
@@ -423,7 +332,7 @@ export function PackOpeningModal({
 
             {/* Card name + value */}
             <motion.div
-              className="mt-4 text-center"
+              className="mt-4 text-center z-10"
               initial={{ y: 30, opacity: 0 }}
               animate={{ y: 0, opacity: cardRevealed ? 1 : 0 }}
               transition={{ delay: 0.35 }}
@@ -444,7 +353,7 @@ export function PackOpeningModal({
 
             {/* Next button */}
             <motion.div
-              className="mt-6 w-full"
+              className="mt-6 w-full z-10"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: cardRevealed ? 1 : 0 }}
               transition={{ delay: 0.6 }}
@@ -454,7 +363,7 @@ export function PackOpeningModal({
                   Next Card ({currentCardIndex + 2}/{pulledCards.length})
                 </Button>
               ) : (
-                <Button size="lg" className="w-full" onClick={() => { setPhase("result"); setEffectMode("idle"); }}>
+                <Button size="lg" className="w-full" onClick={() => setPhase("result")}>
                   View Results
                 </Button>
               )}
@@ -471,7 +380,6 @@ export function PackOpeningModal({
             className="mx-4 w-full max-w-md z-20"
           >
             <h2 className="text-2xl font-black text-center mb-4 text-white">RESULTS</h2>
-
             <div className="rounded-2xl bg-black/80 border border-white/10 backdrop-blur-lg p-4">
               <div className="space-y-2 max-h-56 overflow-y-auto mb-4 pr-1">
                 {pulledCards.map((card, i) => {
@@ -502,7 +410,6 @@ export function PackOpeningModal({
                   );
                 })}
               </div>
-
               <div className="border-t border-white/10 pt-3 space-y-1.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">Total Value</span>
@@ -517,7 +424,6 @@ export function PackOpeningModal({
                   <span className="text-green-400">+{formatNumber(sellBackValue)}</span>
                 </div>
               </div>
-
               {!settled ? (
                 <div className="flex gap-3 mt-4">
                   <Button variant="secondary" className="flex-1" onClick={handleKeepAll}>Keep All</Button>
