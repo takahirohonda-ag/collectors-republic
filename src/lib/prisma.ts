@@ -10,7 +10,7 @@ export function getPrisma() {
   if (!initAttempted) {
     initAttempted = true;
     try {
-      prismaClient = new PrismaClient();
+      prismaClient = new (PrismaClient as any)({});
     } catch (e) {
       console.error("Prisma client init failed:", e);
       prismaClient = null;

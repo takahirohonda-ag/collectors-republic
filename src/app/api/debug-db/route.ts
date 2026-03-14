@@ -11,7 +11,7 @@ export async function GET() {
 
   try {
     prismaStatus = "PrismaClient imported";
-    const prisma = new PrismaClient();
+    const prisma = new (PrismaClient as any)({});
     prismaStatus = "initialized";
     const count = await prisma.user.count();
     queryResult = `success: ${count} users`;
