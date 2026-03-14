@@ -23,8 +23,8 @@ const UserContext = createContext<UserContextType | null>(null);
 
 export function UserProvider({ children, initialCollection }: { children: ReactNode; initialCollection: CollectionItem[] }) {
   const { user } = useAuth();
-  const [coinBalance, setCoinBalance] = useState(12500);
-  const [pointBalance, setPointBalance] = useState(1500);
+  const [coinBalance, setCoinBalance] = useState(0);
+  const [pointBalance, setPointBalance] = useState(0);
   const [collection, setCollection] = useState<CollectionItem[]>(initialCollection);
 
   // Sync balance from API when user is logged in

@@ -21,19 +21,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock user for when Supabase is not configured
-const MOCK_USER: AuthUser = {
-  id: "mock-user-1",
-  email: "collector@example.com",
-  username: "CardCollector_99",
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const supabase = getSupabaseBrowserClient();
   const isConfigured = !!supabase;
 
-  const [user, setUser] = useState<AuthUser | null>(isConfigured ? null : MOCK_USER);
-  const [loading, setLoading] = useState(isConfigured);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!supabase) return;
@@ -68,8 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, username: string) => {
     if (!supabase) {
-      setUser({ ...MOCK_USER, email, username });
-      return {};
+      return { error: "Authentication not configured" };
     }
 
     const { error } = await supabase.auth.signUp({
@@ -84,8 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     if (!supabase) {
-      setUser({ ...MOCK_USER, email });
-      return {};
+      return { error: "Authentication not configured" };
     }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -94,10 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    if (!supabase) {
-      setUser(MOCK_USER);
-      return;
-    }
+    if (!supabase) return;
 
     await supabase.auth.signInWithOAuth({
       provider: "google",
