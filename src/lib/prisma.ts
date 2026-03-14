@@ -10,9 +10,7 @@ export function getPrisma() {
   if (!initAttempted) {
     initAttempted = true;
     try {
-      prismaClient = new (PrismaClient as any)({
-        datasourceUrl: process.env.DATABASE_URL,
-      });
+      prismaClient = new PrismaClient();
     } catch (e) {
       console.error("Prisma client init failed:", e);
       prismaClient = null;

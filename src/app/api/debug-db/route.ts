@@ -11,9 +11,7 @@ export async function GET() {
 
   try {
     prismaStatus = "PrismaClient imported";
-    const prisma = new (PrismaClient as any)({
-      datasourceUrl: process.env.DATABASE_URL,
-    });
+    const prisma = new PrismaClient();
     prismaStatus = "initialized";
     const count = await prisma.user.count();
     queryResult = `success: ${count} users`;
